@@ -142,7 +142,7 @@ private object TokenMatcher {
 // OCR line grouping
 // ─────────────────────────────────────────────────────────────────────────────
 
-private fun groupIntoLines(words: List<Word>, toleranceFraction: Float = 0.55f): List<List<Word>> {
+internal fun groupIntoLines(words: List<Word>, toleranceFraction: Float = 0.55f): List<List<Word>> {
     if (words.isEmpty()) return emptyList()
     val sorted    = words.sortedWith(compareBy({ it.boundingBox.y }, { it.boundingBox.x }))
     val heights   = sorted.map { it.boundingBox.height }.sorted()

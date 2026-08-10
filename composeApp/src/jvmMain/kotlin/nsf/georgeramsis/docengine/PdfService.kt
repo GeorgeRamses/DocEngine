@@ -1099,18 +1099,49 @@ class PdfService {
      * stripper.  This is nearly instant (~1-5 ms) compared to OCR (~500-2000 ms)
      * and returns exact text.  Returns null for image-only / scanned pages.
      */
+    private data class PositionedWord(val text: String, val boundingBox: java.awt.Rectangle)
+
+    private fun groupPositionedWords(words: List<PositionedWord>, toleranceFraction: Float = 0.55f): List<List<PositionedWord>> {
+        if (words.isEmpty()) return emptyList()
+        val sorted = words.sortedWith(compareBy({ it.boundingBox.y }, { it.boundingBox.x }))
+        val heights = sorted.map { it.boundingBox.height }.sorted()
+        val medianH = heights[heights.size / 2]
+        val tolerance = (medianH * toleranceFraction).toInt().coerceAtLeast(6)
+        val lines = mutableListOf<MutableList<PositionedWord>>()
+        for (word in sorted) {
+            val last = lines.lastOrNull()
+            val avgY = last?.let { g -> g.sumOf { it.boundingBox.y } / g.size } ?: Int.MIN_VALUE
+            if (last == null || kotlin.math.abs(word.boundingBox.y - avgY) > tolerance) lines += mutableListOf(word)
+            else last += word
+        }
+        return lines.map { it.sortedBy { w -> w.boundingBox.x } }
+    }
+
     private fun tryExtractTextDirect(doc: PDDocument, pageIndex: Int, config: AppConfig): String? {
         return try {
-            val stripper = PDFTextStripper().apply {
-                startPage = pageIndex + 1   // PDFTextStripper uses 1-based pages
-                endPage   = pageIndex + 1
+            val words = mutableListOf<PositionedWord>()
+            val stripper = object : PDFTextStripper() {
+                override fun writeString(text: String, textPositions: MutableList<org.apache.pdfbox.text.TextPosition>) {
+                    if (textPositions.isEmpty()) return
+                    val x1 = textPositions.minOf { it.xDirAdj }
+                    val y1 = textPositions.minOf { it.yDirAdj - it.heightDir }
+                    val x2 = textPositions.maxOf { it.xDirAdj + it.widthDirAdj }
+                    val y2 = textPositions.maxOf { it.yDirAdj }
+                    words += PositionedWord(text.trim(), java.awt.Rectangle(x1.toInt(), y1.toInt(), (x2 - x1).toInt(), (y2 - y1).toInt()))
+                }
             }
-            val text = stripper.getText(doc)
-            if (text.isBlank()) return null
+            stripper.startPage = pageIndex + 1
+            stripper.endPage   = pageIndex + 1
+            stripper.getText(doc)
+
+            val filteredWords = words.filter { it.text.isNotBlank() }
+            if (filteredWords.isEmpty()) return null
+
             if (config.mode == ScanMode.KEYWORD_GROUP) {
+                val text = filteredWords.joinToString(" ") { it.text }
                 if (text.contains(config.delimiter, ignoreCase = true)) config.delimiter else null
             } else {
-                extractRegex(text, config)
+                extractGeometric(filteredWords, config)
             }
         } catch (_: Exception) {
             null
@@ -1281,11 +1312,114 @@ class PdfService {
     }
 
     private fun runOcr(image: BufferedImage, tess: Tesseract, config: AppConfig): String? = runCatching {
-        val text = tess.doOCR(image)
         if (config.mode == ScanMode.KEYWORD_GROUP) {
+            val text = tess.doOCR(image)
             if (text.contains(config.delimiter, ignoreCase = true)) config.delimiter else null
-        } else extractRegex(text, config)
+        } else {
+            val words = tess.getWords(image, net.sourceforge.tess4j.ITessAPI.TessPageIteratorLevel.RIL_WORD)
+                .filter { it.text.isNotBlank() }
+                .map { PositionedWord(it.text, it.boundingBox) }
+            extractGeometric(words, config)
+        }
     }.getOrNull()
+
+    private fun extractGeometric(words: List<PositionedWord>, config: AppConfig): String? {
+        if (words.isEmpty()) return null
+
+        val delimPat = if (config.delimiter.equals("WO", ignoreCase = true))
+            "(?:W[O0C]|VV[O0]|W\\s+[O0]|Work\\s*Order)"
+        else Regex.escape(config.delimiter)
+        val delimRegex = Regex("(?i)$delimPat")
+
+        val compiledPattern = config.pattern.map { char ->
+            when (char) {
+                '0' -> "\\d"
+                '?' -> "[A-Za-z0-9]"
+                else -> Regex.escape(char.toString())
+            }
+        }.joinToString("")
+        val numRegex = Regex("\\b$compiledPattern\\b")
+
+        fun normalizeOcrDigits(s: String): String = s
+            .replace(Regex("(?<=[0-9OolIBSZo])O(?=[0-9OolIBSZo])", RegexOption.IGNORE_CASE), "0")
+            .replace(Regex("(?<=[0-9])l(?=[0-9])"), "1")
+            .replace(Regex("(?<=[0-9])I(?=[0-9])"), "1")
+            .replace(Regex("(?<=[0-9])B(?=[0-9])"), "8")
+            .replace(Regex("(?<=[0-9])S(?=[0-9])"), "5")
+            .replace(Regex("(?<=[0-9])Z(?=[0-9])"), "2")
+
+        val lines = groupPositionedWords(words)
+
+        var labelBox: java.awt.Rectangle? = null
+        var labelLineIdx = -1
+
+        for ((lineIdx, lineWords) in lines.withIndex()) {
+            val lineStr = lineWords.joinToString(" ") { it.text }
+            val match = delimRegex.find(lineStr)
+            if (match != null) {
+                var currentIdx = 0
+                val matchedWords = mutableListOf<PositionedWord>()
+                for (w in lineWords) {
+                    val start = currentIdx
+                    val end = currentIdx + w.text.length
+                    if (start <= match.range.last && end > match.range.first) {
+                        matchedWords.add(w)
+                    }
+                    currentIdx = end + 1
+                }
+
+                if (matchedWords.isNotEmpty()) {
+                    val x1 = matchedWords.minOf { it.boundingBox.x }
+                    val y1 = matchedWords.minOf { it.boundingBox.y }
+                    val x2 = matchedWords.maxOf { it.boundingBox.x + it.boundingBox.width }
+                    val y2 = matchedWords.maxOf { it.boundingBox.y + it.boundingBox.height }
+                    labelBox = java.awt.Rectangle(x1, y1, x2 - x1, y2 - y1)
+                    labelLineIdx = lineIdx
+                    break
+                }
+            }
+        }
+
+        if (labelBox == null || labelLineIdx == -1) return null
+
+        val candidates = mutableListOf<Pair<String, Double>>()
+
+        for (i in labelLineIdx until kotlin.math.min(lines.size, labelLineIdx + 6)) {
+            for (w in lines[i]) {
+                val normalized = normalizeOcrDigits(w.text)
+                val numMatch = numRegex.find(w.text) ?: numRegex.find(normalized)
+                if (numMatch != null) {
+                    val numBox = w.boundingBox
+                    
+                    val isSameLine = kotlin.math.abs(labelBox.centerY - numBox.centerY) < labelBox.height
+                    val isBelow = numBox.centerY > labelBox.centerY + labelBox.height * 0.25
+                    
+                    val tolerance = numBox.width * 1.5
+                    val overlap = kotlin.math.max(0.0, kotlin.math.min(labelBox.maxX, numBox.maxX) - kotlin.math.max(labelBox.minX, numBox.minX))
+                    val isColumnAligned = overlap > 0 || kotlin.math.abs(labelBox.centerX - numBox.centerX) < tolerance
+                    
+                    val score = when {
+                        isSameLine && numBox.x >= labelBox.x -> {
+                            val dist = numBox.x - labelBox.maxX
+                            if (dist < 0) 0.0 else dist
+                        }
+                        isBelow && isColumnAligned -> {
+                            val dist = numBox.y - labelBox.maxY
+                            val adjustedDist = if (dist < 0) 0.0 else dist
+                            adjustedDist + 5000.0 // Heavy penalty so same-line wins
+                        }
+                        else -> 10000.0
+                    }
+                    
+                    if (score < 10000.0) {
+                        candidates.add(numMatch.value to score)
+                    }
+                }
+            }
+        }
+
+        return candidates.minByOrNull { it.second }?.first
+    }
 
     // ── Digit confusion sets ──────────────────────────────────────────────────
     //
