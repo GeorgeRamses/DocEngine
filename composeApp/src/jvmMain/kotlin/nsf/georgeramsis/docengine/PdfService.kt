@@ -44,6 +44,9 @@ enum class MergeOperation {
     APPEND_END
 }
 
+enum class ScanArea { FULL_PAGE, TOP_30_PERCENT, TOP_HALF, BOTTOM_HALF }
+enum class ScanQuality { NORMAL, FAST }
+
 data class AppConfig(
     val mode: ScanMode = ScanMode.RENAME_ONLY,
     val delimiter: String = "Prefix",
@@ -56,6 +59,8 @@ data class AppConfig(
     val mergeOperation: MergeOperation = MergeOperation.REPLACE_PAGE,
     val targetPageNumber: Int = 1,
     val sourceFolderB: File? = null,
+    val scanArea: ScanArea = ScanArea.FULL_PAGE,
+    val scanQuality: ScanQuality = ScanQuality.NORMAL,
     // ── Auto-Rotate ──────────────────────────────────────────────────────────
     val enableCheckpoint: Boolean = false,
     val diagMode: Boolean = false,
@@ -1126,23 +1131,22 @@ class PdfService {
         config: AppConfig, mainTess: Tesseract, osdTess: Tesseract?,
         fileName: String, tag: String
     ): String? {
-        val raw = renderer.renderImageWithDPI(pageIndex, dpi)
+        val originalRaw = renderer.renderImageWithDPI(pageIndex, dpi)
+        val raw = applyScanArea(originalRaw, config.scanArea)
         val isKeyword = config.mode == ScanMode.KEYWORD_GROUP
 
-        // Full-page preprocessing is computed lazily: for the common case where
-        // the region crop finds the target text, the full page is never preprocessed.
-        val preparedFull: BufferedImage by lazy(LazyThreadSafetyMode.NONE) { fixImageForOcr(raw, dpi) }
+        // Full-page preprocessing is computed lazily
+        val preparedFull: BufferedImage by lazy(LazyThreadSafetyMode.NONE) { fixImageForOcr(raw, dpi, config.scanQuality) }
 
-        // For keyword mode: preprocess the full page (keyword can be anywhere).
-        // For other modes: crop raw image first — preprocess only the crop
-        //   (~9–12% of full-page pixel area) to minimise CLAHE + adaptive-threshold work.
-        var result = if (isKeyword) {
+        // If ScanArea is FULL_PAGE and we are not in keyword mode, we can try the region optimization first.
+        // If we already cropped via ScanArea, just do a full scan of the cropped region.
+        var result = if (isKeyword || config.scanArea != ScanArea.FULL_PAGE) {
             scanFullPage(preparedFull, config, mainTess, fileName, pageIndex, "$tag-FULL")
         } else {
             scanRegionRaw(raw, config, mainTess, fileName, pageIndex, "$tag-STRAIGHT")
         }
 
-        if (result == null && !isKeyword) {
+        if (result == null && !isKeyword && config.scanArea == ScanArea.FULL_PAGE) {
             result = scanFullPage(preparedFull, config, mainTess, fileName, pageIndex, "$tag-FULL")
         }
         if (result != null) return result
@@ -1256,6 +1260,24 @@ class PdfService {
     ): String? {
         saveDebugImage(image, config, fName, pIdx, tag)
         return runOcr(image, tess, config)
+    }
+
+    private fun applyScanArea(image: BufferedImage, scanArea: ScanArea): BufferedImage {
+        return when (scanArea) {
+            ScanArea.FULL_PAGE -> image
+            ScanArea.TOP_30_PERCENT -> {
+                val height = (image.height * 0.30).toInt().coerceAtLeast(1)
+                image.getSubimage(0, 0, image.width, height)
+            }
+            ScanArea.TOP_HALF -> {
+                val height = (image.height * 0.50).toInt().coerceAtLeast(1)
+                image.getSubimage(0, 0, image.width, height)
+            }
+            ScanArea.BOTTOM_HALF -> {
+                val height = (image.height * 0.50).toInt().coerceAtLeast(1)
+                image.getSubimage(0, image.height - height, image.width, height)
+            }
+        }
     }
 
     private fun runOcr(image: BufferedImage, tess: Tesseract, config: AppConfig): String? = runCatching {
@@ -1397,12 +1419,15 @@ class PdfService {
         return findNum(chunk)
     }
 
-    private fun fixImageForOcr(original: BufferedImage, @Suppress("UNUSED_PARAMETER") dpi: Float = 0f): BufferedImage =
-        OpenCvOps.prepareForOcr(
-            original,
-            useDenoise  = false,
-            useAdaptive = true  // adaptive threshold at all DPIs — Otsu loses strokes on uneven scans
-        )
+    private fun fixImageForOcr(
+        original: BufferedImage,
+        @Suppress("UNUSED_PARAMETER") dpi: Float = 0f,
+        scanQuality: ScanQuality = ScanQuality.NORMAL
+    ): BufferedImage = OpenCvOps.prepareForOcr(
+        original,
+        useDenoise  = scanQuality != ScanQuality.FAST,
+        useAdaptive = true  // adaptive threshold at all DPIs — Otsu loses strokes on uneven scans
+    )
 
     private suspend fun saveRenameOnly(originalFile: File, doc: PDDocument, wo: String) {
         val safeWo = wo.replace(Regex("[\\\\/:*?\"<>|]"), "-")

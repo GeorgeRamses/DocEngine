@@ -168,7 +168,9 @@ private fun OptionRow(
                         }
                     }
                 }
-                Text(description, fontSize = 11.sp, color = TextMuted, modifier = Modifier.padding(top = 2.dp))
+                if (description.isNotBlank()) {
+                    Text(description, fontSize = 11.sp, color = TextMuted, modifier = Modifier.padding(top = 2.dp))
+                }
             }
         }
     }
@@ -333,6 +335,8 @@ fun App() {
     var exportUndetected  by remember { mutableStateOf(false) }
     var extractAndDelete  by remember { mutableStateOf(false) }
     var keywordExtractSeparately by remember { mutableStateOf(false) }
+    var scanArea          by remember { mutableStateOf(ScanArea.FULL_PAGE) }
+    var scanQuality       by remember { mutableStateOf(ScanQuality.NORMAL) }
     var mergeOperation    by remember { mutableStateOf(MergeOperation.REPLACE_PAGE) }
     var targetPageNumber  by remember { mutableStateOf("1") }
     var folderBPath       by remember { mutableStateOf<File?>(null) }
@@ -484,6 +488,7 @@ fun App() {
                                 autoRotate = autoRotate, debugMode = debugMode,
                                 exportUndetected = exportUndetected, extractAndDelete = extractAndDelete,
                                 keywordExtractSeparately = keywordExtractSeparately,
+                                scanArea = scanArea, scanQuality = scanQuality,
                                 dropUnassigned = dropUnassigned, isScanning = isScanning,
                                 onDelimiterChange = { delimiter = it },
                                 onPatternChange = { pattern = it },
@@ -492,6 +497,8 @@ fun App() {
                                 onExportUndetectedChange = { exportUndetected = it },
                                 onExtractAndDeleteChange = { extractAndDelete = it },
                                 onKeywordExtractSeparatelyChange = { keywordExtractSeparately = it },
+                                onScanAreaChange = { scanArea = it },
+                                onScanQualityChange = { scanQuality = it },
                                 onDropUnassignedChange = { dropUnassigned = it }
                             )
                         }
@@ -584,6 +591,8 @@ fun App() {
                                                     mergeOperation    = mergeOperation,
                                                     targetPageNumber  = targetPageNumber.toIntOrNull() ?: 1,
                                                     sourceFolderB     = folderBPath,
+                                                    scanArea          = scanArea,
+                                                    scanQuality       = scanQuality,
                                                     enableCheckpoint  = enableCheckpoint,
                                                     diagMode          = diagMode,
                                                     searchText        = searchText,
@@ -778,6 +787,8 @@ private fun OcrConfig(
     onAutoRotateChange: (Boolean) -> Unit, onDebugChange: (Boolean) -> Unit,
     onExportUndetectedChange: (Boolean) -> Unit, onExtractAndDeleteChange: (Boolean) -> Unit,
     onKeywordExtractSeparatelyChange: (Boolean) -> Unit,
+    scanArea: ScanArea, onScanAreaChange: (ScanArea) -> Unit,
+    scanQuality: ScanQuality, onScanQualityChange: (ScanQuality) -> Unit,
     onDropUnassignedChange: (Boolean) -> Unit
 ) {
     val isDeleteMode  = mode == ScanMode.DELETE_BY_KEYWORD
@@ -852,6 +863,46 @@ private fun OcrConfig(
             ThemedCheckbox("Export Undetected Pages to PDF", exportUndetected, !isScanning, onExportUndetectedChange)
         if (isKeywordMode)
             ThemedCheckbox("Extract & Delete from original", extractAndDelete, !isScanning, onExtractAndDeleteChange)
+    }
+
+    ConfigDivider()
+    SectionLabel("Scan Performance")
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp)) {
+        Column(modifier = Modifier.padding(bottom = 8.dp)) {
+            Text("Scan Area", fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+            Text("Crop page before scanning to increase speed", fontSize = 10.sp, color = TextMuted)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            ScanArea.values().forEach { area ->
+                OptionRow(
+                    label = area.name.replace("_", " "),
+                    description = "",
+                    selected = scanArea == area,
+                    enabled = !isScanning,
+                    onClick = { onScanAreaChange(area) }
+                )
+            }
+        }
+    }
+    
+    Spacer(modifier = Modifier.height(6.dp))
+    
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp)) {
+        Column(modifier = Modifier.padding(bottom = 8.dp)) {
+            Text("Quality Preset", fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+            Text("Fast mode skips OpenCV denoising", fontSize = 10.sp, color = TextMuted)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            ScanQuality.values().forEach { sq ->
+                OptionRow(
+                    label = sq.name,
+                    description = "",
+                    selected = scanQuality == sq,
+                    enabled = !isScanning,
+                    onClick = { onScanQualityChange(sq) }
+                )
+            }
+        }
     }
 
     if (isKeywordMode) {
