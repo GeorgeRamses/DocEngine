@@ -135,17 +135,7 @@ class PdfRotationService {
     // Public API
     // ─────────────────────────────────────────────────────────────────────────
 
-    fun rotateFolderInPlace(
-        folder: File,
-        checkpoint: BatchCheckpoint? = null,
-        onProgress: (current: Int, total: Int, message: String) -> Unit,
-        onFileComplete: (RotationResult) -> Unit
-    ): BatchSummary {
-        val files = folder.listFiles { f ->
-            f.isFile && f.extension.equals("pdf", ignoreCase = true)
-        }?.sortedBy { it.name.lowercase() }.orEmpty()
-        return rotateFilesInPlace(files, checkpoint, onProgress, onFileComplete)
-    }
+
 
     fun rotateFilesInPlace(
         files: List<File>,

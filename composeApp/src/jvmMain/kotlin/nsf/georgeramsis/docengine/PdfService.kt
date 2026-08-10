@@ -46,8 +46,8 @@ enum class MergeOperation {
 
 data class AppConfig(
     val mode: ScanMode = ScanMode.RENAME_ONLY,
-    val delimiter: String = "WO",
-    val digits: Int = 6,
+    val delimiter: String = "Prefix",
+    val pattern: String = "000000",
     val unassignedAction: UnassignedAction = UnassignedAction.APPEND_TO_PREVIOUS,
     val autoRotate: Boolean = true,
     val debugMode: Boolean = false,
@@ -113,19 +113,7 @@ class PdfService {
     private var undetectedCount = 0
 
     private val dataFolderPath: String by lazy {
-        val tessBaseDir = File(System.getProperty("user.home"), ".myapp/tessdata")
-        val required = listOf("eng.traineddata", "osd.traineddata")
-        if (!tessBaseDir.exists()) tessBaseDir.mkdirs()
-        required.forEach { fileName ->
-            val target = File(tessBaseDir, fileName)
-            if (!target.exists()) {
-                object {}.javaClass.classLoader
-                    .getResourceAsStream("tessdata/$fileName")
-                    ?.use { input -> target.outputStream().use { input.copyTo(it) } }
-            }
-        }
-        System.setProperty("tess4j.debug", "false")
-        tessBaseDir.absolutePath
+        ocr.TessDataManager.tessDataPath
     }
 
     // ── MAIN ENTRY POINT ──────────────────────────────────────────────────────
@@ -381,11 +369,11 @@ class PdfService {
         onProgress: (Float) -> Unit,
         onLog: suspend (String) -> Unit,
         onComplete: (suspend (Int, Int) -> Unit)?
-    ) = coroutineScope {
+    ) = supervisorScope {
 
         // ── Resolve root directory ────────────────────────────────────────────
         val rootDir = inputFiles.firstOrNull()?.parentFile
-            ?: run { onLog("❌ Cannot resolve root directory"); return@coroutineScope }
+            ?: run { onLog("❌ Cannot resolve root directory"); return@supervisorScope }
 
         // ── Create managed subdirectories ─────────────────────────────────────
         val originalsDir = File(rootDir, "_originals").also { it.mkdirs() }
@@ -409,7 +397,7 @@ class PdfService {
         val totalSize = allFiles.size
 
         if (allFiles.isEmpty()) {
-            onLog("❌ No PDF files found to process."); return@coroutineScope
+            onLog("❌ No PDF files found to process."); return@supervisorScope
         }
 
         onLog("🔍 Find & Replace · $totalSize file(s)  (${rootFiles.size} root + ${unmatchedFiles.size} from _unmatched/)")
@@ -435,24 +423,33 @@ class PdfService {
             // Tmp files are keyed on the source filename, so there are no write conflicts.
             data class ScanEntry(val sourced: SourcedFile, val result: ProcessingResult, val origIndex: Int)
 
+            val scansCompleted = AtomicInteger(0)
+
             val scanEntries: List<ScanEntry> = withContext(Dispatchers.IO) {
                 allFiles.mapIndexed { index, sourced ->
                     async {
-                        val result = runCatching {
-                            processor.processPDF(
-                                inputFile         = sourced.file,
-                                outputDir         = rootDir,
-                                searchText        = config.searchText,
-                                replaceText       = config.replaceText,
-                                maxLines          = config.maxCoverageLines,
-                                detectionAccuracy = config.detectionAccuracy,
-                                renderDpi         = config.textReplaceRenderDpi,
-                                onProgress        = { }
-                            )
-                        }.getOrElse { e ->
-                            ProcessingResult(false, "Error: ${e.message}", inputFile = sourced.file)
+                        processingLimiter.withPermit {
+                            val result = runCatching {
+                                onLog("  🔄 Scanning ${sourced.file.name}…")
+                                processor.processPDF(
+                                    inputFile         = sourced.file,
+                                    outputDir         = rootDir,
+                                    searchText        = config.searchText,
+                                    replaceText       = config.replaceText,
+                                    maxLines          = config.maxCoverageLines,
+                                    detectionAccuracy = config.detectionAccuracy,
+                                    renderDpi         = config.textReplaceRenderDpi,
+                                    autoRotate        = config.autoRotate,
+                                    onProgress        = { msg -> launch { onLog("    [${sourced.file.name}] $msg") } }
+                                )
+                            }.getOrElse { e ->
+                                ProcessingResult(false, "Error: ${e.message}", inputFile = sourced.file)
+                            }
+                            // Phase 1 progress: 0% → 80%
+                            val done = scansCompleted.incrementAndGet()
+                            onProgress(done.toFloat() / totalSize * 0.8f)
+                            ScanEntry(sourced, result, index)
                         }
-                        ScanEntry(sourced, result, index)
                     }
                 }.awaitAll()
             }.sortedBy { it.origIndex }
@@ -474,7 +471,7 @@ class PdfService {
                         onLog("  ⚠ [${sourced.file.name}] Could not back up original: ${e.message}")
                         tmpFile.delete()
                         failCount++
-                        onProgress((index + 1).toFloat() / totalSize)
+                        onProgress(0.8f + (index + 1).toFloat() / totalSize * 0.2f)
                         continue
                     }
 
@@ -521,7 +518,8 @@ class PdfService {
                     }
                 }
 
-                onProgress((index + 1).toFloat() / totalSize)
+                // Phase 2 progress: 80% → 100%
+                onProgress(0.8f + (index + 1).toFloat() / totalSize * 0.2f)
             }
 
             onLog("\n╔══════════════════════════════════════╗")
@@ -637,7 +635,7 @@ class PdfService {
 
                     if (text.contains(config.delimiter, ignoreCase = true)) {
                         matched = true
-                    } else {
+                    } else if (config.autoRotate) {
                         // Straight-pass missed; try rotation fallback.
                         // Stage 1: OSD hint (may return 0° on many scanned forms).
                         val osdAngle = runCatching {
@@ -1148,6 +1146,7 @@ class PdfService {
             result = scanFullPage(preparedFull, config, mainTess, fileName, pageIndex, "$tag-FULL")
         }
         if (result != null) return result
+        if (!config.autoRotate) return null
 
         // ── Rotation fallback ────────────────────────────────────────────────
         // Stage 1: Try OSD to detect orientation (fast-path for the common case).
@@ -1356,7 +1355,15 @@ class PdfService {
             "(?:W[O0C]|VV[O0]|W\\s+[O0]|Work\\s*Order)"
         else Regex.escape(config.delimiter)
         val delimRegex = Regex("(?i)$delimPat")
-        val numRegex   = Regex("\\b\\d{${config.digits}}\\b")
+
+        val compiledPattern = config.pattern.map { char ->
+            when (char) {
+                '0' -> "\\d"
+                '?' -> "[A-Za-z0-9]"
+                else -> Regex.escape(char.toString())
+            }
+        }.joinToString("")
+        val numRegex = Regex("\\b$compiledPattern\\b")
 
         // Normalize letter→digit OCR substitutions that ARE deterministic.
         // Note: 5↔6, 0↔6 are NOT handled here — they're bidirectional digit
@@ -1390,7 +1397,7 @@ class PdfService {
         return findNum(chunk)
     }
 
-    private fun fixImageForOcr(original: BufferedImage, dpi: Float = 0f): BufferedImage =
+    private fun fixImageForOcr(original: BufferedImage, @Suppress("UNUSED_PARAMETER") dpi: Float = 0f): BufferedImage =
         OpenCvOps.prepareForOcr(
             original,
             useDenoise  = false,
@@ -1398,7 +1405,8 @@ class PdfService {
         )
 
     private suspend fun saveRenameOnly(originalFile: File, doc: PDDocument, wo: String) {
-        doc.save(resolveCollision(originalFile.parentFile, "$wo.pdf"))
+        val safeWo = wo.replace(Regex("[\\\\/:*?\"<>|]"), "-")
+        doc.save(resolveCollision(originalFile.parentFile, "$safeWo.pdf"))
     }
 
     private suspend fun saveSplitOutput(originalFile: File, doc: PDDocument, map: Map<String, List<Int>>, config: AppConfig = AppConfig()) {
@@ -1414,7 +1422,8 @@ class PdfService {
                 pages.forEach { pageIdx ->
                     PDDocument().use { newDoc ->
                         newDoc.importPage(doc.getPage(pageIdx))
-                        val fileName = "${originalFile.nameWithoutExtension}_${config.delimiter}_page$counter.pdf"
+                        val safeDelim = config.delimiter.replace(Regex("[\\\\/:*?\"<>|]"), "-")
+                        val fileName = "${originalFile.nameWithoutExtension}_${safeDelim}_page$counter.pdf"
                         newDoc.save(resolveCollision(outputDir, fileName))
                         counter++
                     }
@@ -1426,7 +1435,8 @@ class PdfService {
                 if (wo == "Unassigned") return@forEach
                 PDDocument().use { newDoc ->
                     pages.forEach { newDoc.importPage(doc.getPage(it)) }
-                    newDoc.save(resolveCollision(outputDir, "$wo.pdf"))
+                    val safeWo = wo.replace(Regex("[\\\\/:*?\"<>|]"), "-")
+                    newDoc.save(resolveCollision(outputDir, "$safeWo.pdf"))
                 }
             }
         }

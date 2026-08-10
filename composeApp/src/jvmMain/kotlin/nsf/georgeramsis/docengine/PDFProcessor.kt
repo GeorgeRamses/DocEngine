@@ -15,10 +15,6 @@ import java.awt.Color
 import java.awt.Rectangle
 import java.awt.image.BufferedImage
 import java.io.File
-import java.util.concurrent.Executors
-import java.util.concurrent.Future
-import java.util.concurrent.Semaphore
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -318,6 +314,7 @@ class PDFProcessor {
         maxLines: Int,
         detectionAccuracy: DetectionAccuracy = DetectionAccuracy.BALANCED,
         renderDpi: Float = DEFAULT_RENDER_DPI,
+        autoRotate: Boolean = true,
         onProgress: (String) -> Unit
     ): ProcessingResult {
         if (cancelRequested) return cancelled(inputFile)
@@ -329,67 +326,21 @@ class PDFProcessor {
 
         return try {
             PDDocument.load(inputFile).use { doc ->
-                processDocument(doc, inputFile, outputDir, needle, replaceText, maxLines, detectionAccuracy, renderDpi, onProgress)
+                processDocument(doc, inputFile, outputDir, needle, replaceText, maxLines, detectionAccuracy, renderDpi, autoRotate, onProgress)
             }
         } catch (ex: Exception) {
             ProcessingResult(false, "Failed to process ${inputFile.name}: ${ex.message}", inputFile = inputFile)
         }
     }
 
-    /**
-     * Processes [files] in parallel using up to [N_CPU / 2] threads (min 1, max 4).
-     * Each thread creates its own Tesseract instance via [processPDF] — no lock contention.
-     *
-     * [onProgress] and [onFileComplete] may be invoked from multiple threads simultaneously;
-     * callers are responsible for thread-safety of these callbacks.
-     */
-    fun batchProcess(
-        files: List<File>,
-        outputDir: File,
-        searchText: String,
-        replaceText: String,
-        maxLines: Int,
-        detectionAccuracy: DetectionAccuracy = DetectionAccuracy.BALANCED,
-        renderDpi: Float = DEFAULT_RENDER_DPI,
-        onProgress: (current: Int, total: Int, message: String) -> Unit,
-        onFileComplete: (ProcessingResult) -> Unit
-    ) {
-        val nThreads  = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(1, 4)
-        val pool      = Executors.newFixedThreadPool(nThreads)
-        val semaphore = Semaphore(nThreads)
-        val doneCount = AtomicInteger(0)
-        val futures   = mutableListOf<Future<*>>()
 
-        for (file in files) {
-            if (cancelRequested) { onFileComplete(ProcessingResult(false, "Batch cancelled.", inputFile = file)); break }
-            semaphore.acquire()
-            futures += pool.submit {
-                try {
-                    if (cancelRequested) {
-                        onFileComplete(ProcessingResult(false, "Batch cancelled.", inputFile = file))
-                        return@submit
-                    }
-                    val n = doneCount.incrementAndGet()
-                    onProgress(n, files.size, "Processing ${file.name}…")
-                    val result = processPDF(
-                        file, outputDir, searchText, replaceText, maxLines, detectionAccuracy, renderDpi
-                    ) { msg -> onProgress(n, files.size, msg) }
-                    onFileComplete(result.copy(inputFile = file))
-                } finally {
-                    semaphore.release()
-                }
-            }
-        }
-
-        pool.shutdown()
-        futures.forEach { runCatching { it.get() } }
-    }
 
     @Suppress("DEPRECATION")
     private fun processDocument(
         doc: PDDocument, inputFile: File, outputDir: File,
         needle: List<String>, replaceText: String, maxLines: Int,
-        accuracy: DetectionAccuracy, renderDpi: Float, onProgress: (String) -> Unit
+        accuracy: DetectionAccuracy, renderDpi: Float, autoRotate: Boolean,
+        onProgress: (String) -> Unit
     ): ProcessingResult {
         val renderer     = PDFRenderer(doc)
         val output       = PDDocument()
@@ -441,8 +392,8 @@ class PDFProcessor {
 
             attemptSearch(binary)
 
-            if (matchRanges.isEmpty()) {
-                // Rotation fallback: OSD hint first, then brute-force remaining angles.
+            if (matchRanges.isEmpty() && autoRotate) {
+                // Rotation fallback: use OSD to detect page orientation.
                 val osdAngle = runCatching {
                     val osdOut = osdTess.doOCR(image)
                     val rv = Regex("(?im)^\\s*Rotate\\s*:\\s*(\\d+)").find(osdOut)?.groupValues?.get(1)?.toIntOrNull()
@@ -454,15 +405,12 @@ class PDFProcessor {
                     println("  ⚠ [OSD] PDFProcessor failed: ${e.message}")
                 }.getOrDefault(0)
 
-                val anglesToTry = buildList {
-                    if (osdAngle != 0) add(osdAngle)
-                    for (a in listOf(90, 180, 270)) { if (a != osdAngle) add(a) }
-                }
-                for (angle in anglesToTry) {
-                    val rotatedBinary = OpenCvOps.rotate90(binary, angle)
-                    activeImage = OpenCvOps.rotate90(image, angle)
+                // OSD = 0° → page is already upright; text isn't here — skip.
+                // OSD ≠ 0° → try only the OSD-suggested angle.
+                if (osdAngle != 0) {
+                    val rotatedBinary = OpenCvOps.rotate90(binary, osdAngle)
+                    activeImage = OpenCvOps.rotate90(image, osdAngle)
                     attemptSearch(rotatedBinary)
-                    if (matchRanges.isNotEmpty()) break
                 }
             }
 
@@ -541,14 +489,6 @@ class PDFProcessor {
         val right  = (rect.x + rect.width  + padX).coerceAtMost(maxWidth)
         val bottom = (rect.y + rect.height + padY).coerceAtMost(maxHeight)
         return Rectangle(x, y, (right - x).coerceAtLeast(1), (bottom - y).coerceAtLeast(1))
-    }
-
-    private fun uniqueFile(dir: File, name: String): File {
-        var candidate = File(dir, name)
-        if (!candidate.exists()) return candidate
-        val stem = candidate.nameWithoutExtension; val ext = candidate.extension; var n = 1
-        do { candidate = File(dir, "${stem}_$n.$ext"); n++ } while (candidate.exists())
-        return candidate
     }
 
     private fun cancelled(file: File) = ProcessingResult(false, "Cancelled: ${file.name}", inputFile = file)

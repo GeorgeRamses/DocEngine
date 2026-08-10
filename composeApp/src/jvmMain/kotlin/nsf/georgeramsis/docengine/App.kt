@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.*
 import androidx.compose.runtime.*
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -324,8 +325,8 @@ fun App() {
 
     // ── Config state ──────────────────────────────────────────────────────────
     var mode              by remember { mutableStateOf(ScanMode.RENAME_ONLY) }
-    var delimiter         by remember { mutableStateOf("WO") }
-    var digits            by remember { mutableStateOf("6") }
+    var delimiter         by remember { mutableStateOf("Prefix") }
+    var pattern           by remember { mutableStateOf("000000") }
     var dropUnassigned    by remember { mutableStateOf(false) }
     var autoRotate        by remember { mutableStateOf(true) }
     var debugMode         by remember { mutableStateOf(false) }
@@ -405,8 +406,8 @@ fun App() {
                         // ── Operation Mode ──────────────────────────────────────
                         SectionLabel("Operation Mode")
                         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            OptionRow("Rename File Only",       "Scan page 1 → rename by WO number",                        mode == ScanMode.RENAME_ONLY,       !isScanning) { mode = ScanMode.RENAME_ONLY }
-                            OptionRow("Split by Number",        "Group and split pages by WO number",                       mode == ScanMode.SPLIT_AND_ORGANIZE,!isScanning) { mode = ScanMode.SPLIT_AND_ORGANIZE }
+                            OptionRow("Rename File Only",       "Scan page 1 → rename by matched pattern",                  mode == ScanMode.RENAME_ONLY,       !isScanning) { mode = ScanMode.RENAME_ONLY }
+                            OptionRow("Split by Number",        "Group and split pages by matched pattern",                 mode == ScanMode.SPLIT_AND_ORGANIZE,!isScanning) { mode = ScanMode.SPLIT_AND_ORGANIZE }
                             OptionRow("Extract by Keyword",     "Split pages by text keyword match",                        mode == ScanMode.KEYWORD_GROUP,     !isScanning) { mode = ScanMode.KEYWORD_GROUP }
                             OptionRow("Delete Pages by Keyword","Remove every page that contains a word or phrase",         mode == ScanMode.DELETE_BY_KEYWORD, !isScanning, badgeColor = AccentRed) { mode = ScanMode.DELETE_BY_KEYWORD }
                             OptionRow("Page Merge / Replace",   "Replace or insert pages between PDFs",                    mode == ScanMode.PAGE_MERGE,        !isScanning, badge = "NEW", badgeColor = AccentGreen) { mode = ScanMode.PAGE_MERGE }
@@ -479,13 +480,13 @@ fun App() {
                                 onTextOnlyChange    = { handwritingTextOnly = it }
                             )
                             else -> OcrConfig(
-                                mode = mode, delimiter = delimiter, digits = digits,
+                                mode = mode, delimiter = delimiter, pattern = pattern,
                                 autoRotate = autoRotate, debugMode = debugMode,
                                 exportUndetected = exportUndetected, extractAndDelete = extractAndDelete,
                                 keywordExtractSeparately = keywordExtractSeparately,
                                 dropUnassigned = dropUnassigned, isScanning = isScanning,
                                 onDelimiterChange = { delimiter = it },
-                                onDigitsChange = { if (it.all(Char::isDigit)) digits = it },
+                                onPatternChange = { pattern = it },
                                 onAutoRotateChange = { autoRotate = it },
                                 onDebugChange = { debugMode = it },
                                 onExportUndetectedChange = { exportUndetected = it },
@@ -574,7 +575,7 @@ fun App() {
                                                 AppConfig(
                                                     mode              = mode,
                                                     delimiter         = delimiter,
-                                                    digits            = digits.toIntOrNull() ?: 6,
+                                                    pattern           = pattern.takeIf { it.isNotBlank() } ?: "000000",
                                                     unassignedAction  = if (dropUnassigned) UnassignedAction.DROP else UnassignedAction.APPEND_TO_PREVIOUS,
                                                     autoRotate        = autoRotate,
                                                     debugMode         = debugMode,
@@ -769,11 +770,11 @@ private fun LogToolButton(label: String, onClick: () -> Unit) {
 
 @Composable
 private fun OcrConfig(
-    mode: ScanMode, delimiter: String, digits: String,
+    mode: ScanMode, delimiter: String, pattern: String,
     autoRotate: Boolean, debugMode: Boolean, exportUndetected: Boolean,
     extractAndDelete: Boolean, keywordExtractSeparately: Boolean,
     dropUnassigned: Boolean, isScanning: Boolean,
-    onDelimiterChange: (String) -> Unit, onDigitsChange: (String) -> Unit,
+    onDelimiterChange: (String) -> Unit, onPatternChange: (String) -> Unit,
     onAutoRotateChange: (Boolean) -> Unit, onDebugChange: (Boolean) -> Unit,
     onExportUndetectedChange: (Boolean) -> Unit, onExtractAndDeleteChange: (Boolean) -> Unit,
     onKeywordExtractSeparatelyChange: (Boolean) -> Unit,
@@ -789,15 +790,47 @@ private fun OcrConfig(
         label = when (mode) {
             ScanMode.DELETE_BY_KEYWORD -> "Word or phrase to match"
             ScanMode.KEYWORD_GROUP     -> "Keyword to find"
-            else                       -> "Delimiter (e.g. WO)"
+            else                       -> "Delimiter (e.g. Prefix, Invoice, ID)"
         },
         enabled = !isScanning, modifier = Modifier.fillMaxWidth()
     )
 
     if (!isKeywordMode && !isDeleteMode) {
         Spacer(Modifier.height(10.dp))
-        ThemedTextField(value = digits, onValueChange = onDigitsChange,
-            label = "Number of Digits", enabled = !isScanning, modifier = Modifier.fillMaxWidth())
+        var showPatternHelp by remember { mutableStateOf(false) }
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            ThemedTextField(
+                value = pattern, onValueChange = onPatternChange,
+                label = "Pattern (e.g. 000000)", enabled = !isScanning,
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(onClick = { showPatternHelp = true }) {
+                Text("?", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = AccentBlue)
+            }
+        }
+        
+        if (showPatternHelp) {
+            AlertDialog(
+                onDismissRequest = { showPatternHelp = false },
+                title = { Text("Pattern Guide", fontWeight = FontWeight.Bold, color = TextPrimary) },
+                text = {
+                    Column {
+                        Text("Use patterns to define how the file number looks:", color = TextSecondary)
+                        Spacer(Modifier.height(8.dp))
+                        Text("• 0 : Matches any single digit (0-9)", color = TextSecondary)
+                        Text("• ? : Matches any single letter or digit", color = TextSecondary)
+                        Text("• Other characters (like -, /) match exactly.", color = TextSecondary)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Example: 00-000 matches 12-345", color = TextSecondary)
+                        Text("Example: ???000 matches ABC123", color = TextSecondary)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showPatternHelp = false }) { Text("OK", color = AccentBlue) }
+                },
+                backgroundColor = BgElevated
+            )
+        }
     }
 
     if (isDeleteMode) {
@@ -947,9 +980,9 @@ private fun TextReplaceConfig(
     Spacer(Modifier.height(14.dp))
     InfoBox(
         "How it works",
-        "Each page is rendered at 300 DPI and OCR-scanned. Matched text is visually replaced: " +
+        "Each page is rendered at 200 DPI and OCR-scanned. Matched text is visually replaced: " +
                 "a white rectangle covers the original, then the replacement text is drawn at the " +
-                "original font size. Output is saved as processed_<filename>.pdf in the same folder.",
+                "original font size. Originals are backed up to _originals/ and unmatched files go to _unmatched/.",
         AccentOrange
     )
 }
@@ -1194,15 +1227,14 @@ private fun HandwritingConfig(
     )
 
     ConfigDivider()
-    SectionLabel("Roadmap  —  With OpenCV")
+    SectionLabel("Active  —  OpenCV Pipeline")
     InfoBox(
-        "Future enhancements (when JavaCV is added)",
-        "• Stroke Width Transform (SWT) — locates specific handwritten regions\n" +
-                "  instead of classifying the full page\n" +
-                "• CLAHE contrast enhancement — better than histogram stretch\n" +
-                "• Deskew individual annotation blocks before OCR\n" +
-                "• Region bounding-box overlay exported as annotated PDF",
-        AccentYellow
+        "Powered by OpenCV & JavaCV",
+        "• CLAHE adaptive contrast — recovers faded ink & uneven lighting\n" +
+                "• Fast Non-Local Means Denoising — removes scanner noise\n" +
+                "• Gaussian Adaptive Thresholding — local SIMD binarization\n" +
+                "• Run-length Coefficient of Variation — stroke analysis",
+        AccentGreen
     )
 }
 
