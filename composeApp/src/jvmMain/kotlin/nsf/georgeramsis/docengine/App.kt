@@ -13,7 +13,15 @@ import androidx.compose.material.*
 import androidx.compose.runtime.*
 
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
+import androidx.compose.ui.draganddrop.DragAndDropEvent
+import androidx.compose.ui.draganddrop.DragAndDropTarget
+import androidx.compose.ui.draganddrop.DragData
+import androidx.compose.ui.draganddrop.dragData
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.Modifier
+import java.net.URI
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -366,8 +374,84 @@ fun App() {
     // ── Theme — loaded from and saved to AppPreferences ───────────────────────
     var isDarkTheme by remember { mutableStateOf(AppPreferences.isDarkTheme) }
 
+    val runScan: (List<File>) -> Unit = { files ->
+        val inputFiles = files.flatMap { file ->
+            if (file.isDirectory) {
+                file.walkTopDown().filter { it.extension.equals("pdf", ignoreCase = true) }.toList()
+            } else {
+                listOf(file)
+            }
+        }
+        if (inputFiles.isNotEmpty()) {
+            viewModel.startScanning(
+                inputFiles,
+                AppConfig(
+                    mode              = mode,
+                    delimiter         = delimiter,
+                    pattern           = pattern.takeIf { it.isNotBlank() } ?: "000000",
+                    unassignedAction  = if (dropUnassigned) UnassignedAction.DROP else UnassignedAction.APPEND_TO_PREVIOUS,
+                    autoRotate        = autoRotate,
+                    debugMode         = debugMode,
+                    exportUndetected  = exportUndetected,
+                    extractAndDelete  = extractAndDelete,
+                    mergeOperation    = mergeOperation,
+                    targetPageNumber  = targetPageNumber.toIntOrNull() ?: 1,
+                    sourceFolderB     = folderBPath,
+                    scanArea          = scanArea,
+                    scanQuality       = scanQuality,
+                    enableCheckpoint  = enableCheckpoint,
+                    diagMode          = diagMode,
+                    searchText        = searchText,
+                    replaceText       = replaceText,
+                    detectionAccuracy = detectionAccuracy,
+                    maxCoverageLines  = maxCoverageLines.toIntOrNull() ?: 2,
+                    footerLeftText    = footerLeftText,
+                    footerCenterText  = footerCenterText,
+                    footerRightText   = footerRightText,
+                    footerHeight      = footerHeight.toFloatOrNull() ?: 20f,
+                    footerFontSize    = footerFontSize.toFloatOrNull() ?: 9f,
+                    footerPages       = footerPages,
+                    handwritingMinConfidence = (handwritingConfidence.toIntOrNull() ?: 25) / 100.0,
+                    handwritingSaveReport    = handwritingSaveReport,
+                    handwritingTextOnly      = handwritingTextOnly,
+                    keywordExtractSeparately = keywordExtractSeparately
+                )
+            )
+        }
+    }
+
+    val needsFolderB  = mode == ScanMode.PAGE_MERGE && folderBPath == null
+    val needsSearch   = mode == ScanMode.TEXT_REPLACE && searchText.isBlank()
+    val isBlocked     = needsFolderB || needsSearch
+
+    @OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
+    val dragAndDropTarget = remember {
+        object : DragAndDropTarget {
+            override fun onDrop(event: DragAndDropEvent): Boolean {
+                if (isScanning || isBlocked) return false
+                val dragData = event.dragData()
+                if (dragData is DragData.FilesList) {
+                    val files = dragData.readFiles().map { File(URI(it).path) }
+                    lastDirectory = files.firstOrNull()?.parentFile
+                    runScan(files)
+                    return true
+                }
+                return false
+            }
+        }
+    }
+
+    @OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
     AppTheme(isDarkTheme) {
-        Box(Modifier.fillMaxSize().background(BgDeep)) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(BgDeep)
+                .dragAndDropTarget(
+                    shouldStartDragAndDrop = { true },
+                    target = dragAndDropTarget
+                )
+        ) {
             Row(Modifier.fillMaxSize()) {
 
                 // ═══════════════════════════════════════════════════════════
@@ -533,10 +617,6 @@ fun App() {
                                     border = BorderStroke(1.dp, AccentRed.copy(alpha = 0.35f))
                                 ) { Text("Cancel Operation", fontWeight = FontWeight.SemiBold) }
                             } else {
-                                val needsFolderB  = mode == ScanMode.PAGE_MERGE && folderBPath == null
-                                val needsSearch   = mode == ScanMode.TEXT_REPLACE && searchText.isBlank()
-                                val isBlocked     = needsFolderB || needsSearch
-
                                 // Stats strip
                                 AnimatedVisibility(visible = stats != null) {
                                     stats?.let { s ->
@@ -557,61 +637,22 @@ fun App() {
                                     onClick = {
                                         if (isBlocked) return@Button
                                         UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
-                                        val chooser = JFileChooser().apply {
-                                            fileSelectionMode = if (mode == ScanMode.PAGE_MERGE)
-                                                JFileChooser.DIRECTORIES_ONLY
-                                            else
-                                                JFileChooser.FILES_AND_DIRECTORIES
-                                            dialogTitle = if (mode == ScanMode.PAGE_MERGE)
-                                                "Select Target Folder A"
-                                            else
-                                                "Select PDF File or Folder"
-                                            lastDirectory?.let { currentDirectory = it }
-                                        }
-                                        if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-                                            val file = chooser.selectedFile
-                                            lastDirectory = file.parentFile
-                                            val inputFiles = if (file.isDirectory)
-                                                file.walkTopDown()
-                                                    .filter { it.extension.equals("pdf", ignoreCase = true) }
-                                                    .toList()
-                                            else listOf(file)
-
-                                            viewModel.startScanning(
-                                                inputFiles,
-                                                AppConfig(
-                                                    mode              = mode,
-                                                    delimiter         = delimiter,
-                                                    pattern           = pattern.takeIf { it.isNotBlank() } ?: "000000",
-                                                    unassignedAction  = if (dropUnassigned) UnassignedAction.DROP else UnassignedAction.APPEND_TO_PREVIOUS,
-                                                    autoRotate        = autoRotate,
-                                                    debugMode         = debugMode,
-                                                    exportUndetected  = exportUndetected,
-                                                    extractAndDelete  = extractAndDelete,
-                                                    mergeOperation    = mergeOperation,
-                                                    targetPageNumber  = targetPageNumber.toIntOrNull() ?: 1,
-                                                    sourceFolderB     = folderBPath,
-                                                    scanArea          = scanArea,
-                                                    scanQuality       = scanQuality,
-                                                    enableCheckpoint  = enableCheckpoint,
-                                                    diagMode          = diagMode,
-                                                    searchText        = searchText,
-                                                    replaceText       = replaceText,
-                                                    detectionAccuracy = detectionAccuracy,
-                                                    maxCoverageLines  = maxCoverageLines.toIntOrNull() ?: 2,
-                                                    footerLeftText    = footerLeftText,
-                                                    footerCenterText  = footerCenterText,
-                                                    footerRightText   = footerRightText,
-                                                    footerHeight      = footerHeight.toFloatOrNull() ?: 20f,
-                                                    footerFontSize    = footerFontSize.toFloatOrNull() ?: 9f,
-                                                    footerPages       = footerPages,
-                                                    handwritingMinConfidence = (handwritingConfidence.toIntOrNull() ?: 25) / 100.0,
-                                                    handwritingSaveReport    = handwritingSaveReport,
-                                                    handwritingTextOnly      = handwritingTextOnly,
-                                                    keywordExtractSeparately = keywordExtractSeparately
-                                                )
-                                            )
-                                        }
+                                val chooser = JFileChooser().apply {
+                                    fileSelectionMode = if (mode == ScanMode.PAGE_MERGE)
+                                        JFileChooser.DIRECTORIES_ONLY
+                                    else
+                                        JFileChooser.FILES_AND_DIRECTORIES
+                                    dialogTitle = if (mode == ScanMode.PAGE_MERGE)
+                                        "Select Target Folder A"
+                                    else
+                                        "Select PDF File or Folder"
+                                    lastDirectory?.let { currentDirectory = it }
+                                }
+                                if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+                                    val file = chooser.selectedFile
+                                    lastDirectory = file.parentFile
+                                    runScan(listOf(file))
+                                }
                                     },
                                     modifier  = Modifier.fillMaxWidth().height(40.dp),
                                     shape     = RoundedCornerShape(6.dp),
