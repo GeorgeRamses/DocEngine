@@ -5,8 +5,11 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import net.sourceforge.tess4j.Tesseract
+import org.apache.pdfbox.cos.COSName
+import org.apache.pdfbox.io.MemoryUsageSetting
 import org.apache.pdfbox.multipdf.PDFMergerUtility
 import org.apache.pdfbox.pdmodel.PDDocument
+import org.apache.pdfbox.pdmodel.PDPage
 import org.apache.pdfbox.rendering.PDFRenderer
 import org.apache.pdfbox.text.PDFTextStripper
 import java.awt.image.BufferedImage
@@ -16,6 +19,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.system.measureTimeMillis
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -31,7 +36,8 @@ enum class ScanMode {
     AUTO_ROTATE,
     TEXT_REPLACE,
     ADD_FOOTER,
-    HANDWRITING_EXTRACT
+    HANDWRITING_EXTRACT,
+    EXTRACT_BY_PAGE_SIZE
 }
 
 enum class UnassignedAction { DROP, APPEND_TO_PREVIOUS }
@@ -97,10 +103,13 @@ class PdfService {
     // Active service references — used for cooperative cancellation
     @Volatile
     private var activeRotationService: PdfRotationService? = null
+
     @Volatile
     private var activePdfProcessor: PDFProcessor? = null
+
     @Volatile
     private var activeFooterService: PdfFooterService? = null
+
     @Volatile
     private var activeHandwritingService: HandwritingExtractService? = null
 
@@ -165,6 +174,11 @@ class PdfService {
                 return@supervisorScope
             }
 
+            ScanMode.EXTRACT_BY_PAGE_SIZE -> {
+                processExtractByPageSize(inputFiles, onProgress, onLog, onComplete)
+                return@supervisorScope
+            }
+
             else -> { /* OCR modes handled below */
             }
         }
@@ -221,6 +235,125 @@ class PdfService {
             exportUndetectedPages(inputFiles.firstOrNull()?.parentFile, onLog)
     }
 
+    /** Extract A4 and A3 pages from each input PDF into sibling size folders. */
+    private data class PageDimsMm(val longMm: Float, val shortMm: Float)
+
+    /** label, long side (mm), short side (mm). Add A2/A1/A0 here if you need them. */
+    private val EXTRACT_SIZE_TABLE = listOf(
+        Triple("A4", 297f, 210f),
+        Triple("A3", 420f, 297f),
+        // Triple("A2", 594f, 420f),
+        // Triple("A1", 841f, 594f),
+        // Triple("A0", 1189f, 841f),
+    )
+    private val SIZE_TOLERANCE_MM = 3f
+
+    /** Visible page size in mm, orientation-independent (long/short), honouring UserUnit. */
+    private fun pageDimsMm(page: PDPage): PageDimsMm {
+        val box = page.cropBox                       // PDFBox 2.x never returns null here
+        val userUnit = page.cosObject.getFloat(COSName.getPDFName("UserUnit"), 1f)
+        val toMm = 25.4f / 72f * userUnit
+        val w = box.width * toMm
+        val h = box.height * toMm
+        return PageDimsMm(longMm = maxOf(w, h), shortMm = minOf(w, h))
+    }
+
+    private fun classifyBySize(d: PageDimsMm): String? =
+        EXTRACT_SIZE_TABLE.firstOrNull { (_, l, s) ->
+            abs(d.longMm - l) <= SIZE_TOLERANCE_MM && abs(d.shortMm - s) <= SIZE_TOLERANCE_MM
+        }?.first
+
+    /** [1,2,3,5,7,8] -> "1-3, 5, 7-8" */
+    private fun List<Int>.toRangeString(): String {
+        val parts = mutableListOf<String>()
+        var i = 0
+        while (i < size) {
+            var j = i
+            while (j + 1 < size && this[j + 1] == this[j] + 1) j++
+            parts += if (j == i) "${this[i]}" else "${this[i]}-${this[j]}"
+            i = j + 1
+        }
+        return parts.joinToString(", ")
+    }
+
+    /** Extract A4 / A3 pages from each input PDF into "<folder>/Extracted by size/<A4|A3>/". */
+    private suspend fun processExtractByPageSize(
+        inputFiles: List<File>,
+        onProgress: (Float) -> Unit,
+        onLog: suspend (String) -> Unit,
+        onComplete: (suspend (success: Int, skipped: Int) -> Unit)?
+    ) {
+        var succeeded = 0
+        var failed = 0
+
+        withContext(Dispatchers.IO) {                       // keep blocking PDF I/O off the UI thread
+            onProgress(0f)
+            inputFiles.forEachIndexed { fileIdx, file ->
+                ensureActive()                              // cooperative cancellation between files
+                try {
+                    if (extractOneFileBySize(file, onLog)) succeeded++ else failed++
+                } catch (e: CancellationException) {
+                    throw e                                 // never swallow cancellation
+                } catch (e: Exception) {
+                    failed++
+                    onLog("  ❌ [${file.name}] ${e.message}")
+                }
+                onProgress((fileIdx + 1f) / inputFiles.size)
+            }
+        }
+        onComplete?.invoke(succeeded, failed)
+    }
+
+    /** @return true if at least one page was extracted. */
+    private suspend fun extractOneFileBySize(file: File, onLog: suspend (String) -> Unit): Boolean {
+        // Temp-file buffering: large scanned PDFs won't blow up the heap.
+        PDDocument.load(file, MemoryUsageSetting.setupTempFileOnly()).use { source ->
+            val outputs = LinkedHashMap<String, PDDocument>()
+            val pagesBySize = LinkedHashMap<String, MutableList<Int>>()
+            val skipped = mutableListOf<String>()
+
+            try {
+                source.pages.forEachIndexed { index, page ->
+                    val dims = pageDimsMm(page)
+                    val label = classifyBySize(dims)
+                    if (label == null) {
+                        skipped += "p${index + 1} (${dims.longMm.roundToInt()}×${dims.shortMm.roundToInt()} mm)"
+                        return@forEachIndexed
+                    }
+                    outputs.getOrPut(label) { PDDocument(MemoryUsageSetting.setupTempFileOnly()) }
+                        .importPage(page)
+                    pagesBySize.getOrPut(label) { mutableListOf() }.add(index + 1)
+                }
+
+                // One summary line per size instead of one log line per page
+                pagesBySize.forEach { (size, pages) ->
+                    onLog("  📄 [${file.name}] $size → pages ${pages.toRangeString()}")
+                }
+                if (skipped.isNotEmpty()) {
+                    val shown = skipped.take(10).joinToString(", ")
+                    val more = if (skipped.size > 10) " … +${skipped.size - 10} more" else ""
+                    onLog("  ⚠ [${file.name}] ${skipped.size} page(s) not A4/A3: $shown$more")
+                }
+
+                if (outputs.isEmpty()) {
+                    onLog("  ⚠ [${file.name}] No A4 or A3 pages found")
+                    return false
+                }
+
+                outputs.forEach { (size, document) ->
+                    val outputDir = File(file.parentFile, "Extracted by size/$size").apply { mkdirs() }
+                    val output = resolveCollision(outputDir, file.name)   // never overwrite a previous run
+                    document.save(output)
+                    onLog("  ✅ [${file.name}] ${document.numberOfPages} $size page(s) → ${output.absolutePath}")
+                }
+                return true
+            } finally {
+                outputs.values.forEach { runCatching { it.close() } }
+            }
+        }
+    }
+
+
     // ── HANDWRITING EXTRACT ───────────────────────────────────────────────────
 
     private suspend fun processHandwritingExtract(
@@ -242,7 +375,7 @@ class PdfService {
         activeHandwritingService = service
 
         var withHandwriting = 0
-        var printOnly       = 0
+        var printOnly = 0
 
         val timeTaken = measureTimeMillis {
             withContext(Dispatchers.IO) {
@@ -253,11 +386,11 @@ class PdfService {
                     onLog("  📄 [${index + 1}/${inputFiles.size}] ${file.name}")
 
                     val result = service.extractFromFile(
-                        inputFile     = file,
+                        inputFile = file,
                         minConfidence = config.handwritingMinConfidence,
-                        saveReport    = config.handwritingSaveReport,
-                        textOnly      = config.handwritingTextOnly,
-                        onProgress    = { /* page-level detail suppressed */ }
+                        saveReport = config.handwritingSaveReport,
+                        textOnly = config.handwritingTextOnly,
+                        onProgress = { /* page-level detail suppressed */ }
                     )
 
                     if (result.success) {
@@ -437,15 +570,15 @@ class PdfService {
                             val result = runCatching {
                                 onLog("  🔄 Scanning ${sourced.file.name}…")
                                 processor.processPDF(
-                                    inputFile         = sourced.file,
-                                    outputDir         = rootDir,
-                                    searchText        = config.searchText,
-                                    replaceText       = config.replaceText,
-                                    maxLines          = config.maxCoverageLines,
+                                    inputFile = sourced.file,
+                                    outputDir = rootDir,
+                                    searchText = config.searchText,
+                                    replaceText = config.replaceText,
+                                    maxLines = config.maxCoverageLines,
                                     detectionAccuracy = config.detectionAccuracy,
-                                    renderDpi         = config.textReplaceRenderDpi,
-                                    autoRotate        = config.autoRotate,
-                                    onProgress        = { msg -> launch { onLog("    [${sourced.file.name}] $msg") } }
+                                    renderDpi = config.textReplaceRenderDpi,
+                                    autoRotate = config.autoRotate,
+                                    onProgress = { msg -> launch { onLog("    [${sourced.file.name}] $msg") } }
                                 )
                             }.getOrElse { e ->
                                 ProcessingResult(false, "Error: ${e.message}", inputFile = sourced.file)
@@ -628,8 +761,10 @@ class PdfService {
                 onFileProgress(pageIdx.toFloat() / totalPages)
 
                 // ── Fast-path: try embedded text first ──
-                val directText = tryExtractTextDirect(document, pageIdx,
-                    config.copy(mode = ScanMode.KEYWORD_GROUP))
+                val directText = tryExtractTextDirect(
+                    document, pageIdx,
+                    config.copy(mode = ScanMode.KEYWORD_GROUP)
+                )
                 var matched = directText != null
 
                 // ── OCR fallback ──
@@ -645,9 +780,12 @@ class PdfService {
                         // Stage 1: OSD hint (may return 0° on many scanned forms).
                         val osdAngle = runCatching {
                             val osdOut = osdTesseract.doOCR(raw200)
-                            val rv = Regex("(?im)^\\s*Rotate\\s*:\\s*(\\d+)").find(osdOut)?.groupValues?.get(1)?.toIntOrNull()
+                            val rv = Regex("(?im)^\\s*Rotate\\s*:\\s*(\\d+)").find(osdOut)?.groupValues?.get(1)
+                                ?.toIntOrNull()
                             val ov = if (rv == null)
-                                Regex("(?im)^\\s*Orientation in degrees\\s*:\\s*(\\d+)").find(osdOut)?.groupValues?.get(1)?.toIntOrNull()?.let { ((360 - it) % 360) }
+                                Regex("(?im)^\\s*Orientation in degrees\\s*:\\s*(\\d+)").find(osdOut)?.groupValues?.get(
+                                    1
+                                )?.toIntOrNull()?.let { ((360 - it) % 360) }
                             else null
                             rv ?: ov ?: 0
                         }.onFailure { e ->
@@ -657,7 +795,9 @@ class PdfService {
                         // Stage 2: Brute-force — OSD angle first, then remaining rotations.
                         val anglesToTry = buildList {
                             if (osdAngle != 0) add(osdAngle)
-                            for (a in listOf(90, 180, 270)) { if (a != osdAngle) add(a) }
+                            for (a in listOf(90, 180, 270)) {
+                                if (a != osdAngle) add(a)
+                            }
                         }
                         for (angle in anglesToTry) {
                             val rotated = OpenCvOps.rotate90(prep200, angle)
@@ -987,7 +1127,7 @@ class PdfService {
                         else -> {
                             // disagree — run tiebreaker at 400 DPI on a tight top-crop
                             val tiebreakRaw = renderer.renderImageWithDPI(0, 400f)
-                            val tiebreakH   = (tiebreakRaw.height * 0.30).toInt().coerceAtLeast(1)
+                            val tiebreakH = (tiebreakRaw.height * 0.30).toInt().coerceAtLeast(1)
                             val tiebreakImg = fixImageForOcr(
                                 tiebreakRaw.getSubimage(0, 0, tiebreakRaw.width, tiebreakH), 400f
                             )
@@ -1010,6 +1150,8 @@ class PdfService {
                 }
             } else {
                 var lastGroup = "Unassigned"
+                var prevPageMatched = false      // true when the PREVIOUS page itself matched the keyword
+
                 for (pageIdx in 0 until totalPages) {
                     currentCoroutineContext().ensureActive()
                     onFileProgress(pageIdx.toFloat() / totalPages)
@@ -1019,8 +1161,10 @@ class PdfService {
 
                     // ── Two-pass OCR with vote to defeat 5↔6 / 0↔6 confusion ──
                     if (found == null) {
-                        val fast = tryScanPage(renderer, pageIdx, 200f, config, mainTesseract, osdTesseract, file.name, "FAST")
-                        val deep = tryScanPage(renderer, pageIdx, 300f, config, mainTesseract, osdTesseract, file.name, "DEEP")
+                        val fast =
+                            tryScanPage(renderer, pageIdx, 200f, config, mainTesseract, osdTesseract, file.name, "FAST")
+                        val deep =
+                            tryScanPage(renderer, pageIdx, 300f, config, mainTesseract, osdTesseract, file.name, "DEEP")
                         found = when {
                             fast == null && deep == null -> null
                             fast == null -> deep
@@ -1028,7 +1172,7 @@ class PdfService {
                             fast == deep -> fast
                             else -> {
                                 val tiebreakRaw = renderer.renderImageWithDPI(pageIdx, 400f)
-                                val tiebreakH   = (tiebreakRaw.height * 0.30).toInt().coerceAtLeast(1)
+                                val tiebreakH = (tiebreakRaw.height * 0.30).toInt().coerceAtLeast(1)
                                 val tiebreakImg = fixImageForOcr(
                                     tiebreakRaw.getSubimage(0, 0, tiebreakRaw.width, tiebreakH), 400f
                                 )
@@ -1045,10 +1189,15 @@ class PdfService {
                                     woMap.getOrPut(found) { mutableListOf() }.add(pageIdx)
                                     onLog("  🔹 [${file.name}] P${pageIdx + 1}: Matched '$found'")
                                 } else {
-                                    val key = "${found}_${(++keyGroupCounter).toString().padStart(3, '0')}"
+                                    val continuesSection = prevPageMatched && lastGroup != "Unassigned"
+                                    val key = if (continuesSection) lastGroup
+                                    else "${found}_${(++keyGroupCounter).toString().padStart(3, '0')}"
                                     lastGroup = key
                                     woMap.getOrPut(key) { mutableListOf() }.add(pageIdx)
-                                    onLog("  🔹 [${file.name}] P${pageIdx + 1}: New section '$key'")
+                                    onLog(
+                                        if (continuesSection) "  🔹 [${file.name}] P${pageIdx + 1}: Matched → same section '$key'"
+                                        else "  🔹 [${file.name}] P${pageIdx + 1}: New section '$key'"
+                                    )
                                 }
                             }
 
@@ -1058,7 +1207,9 @@ class PdfService {
                                 onLog("  🔹 [${file.name}] P${pageIdx + 1}: $found")
                             }
                         }
+                        prevPageMatched = true
                     } else {
+                        prevPageMatched = false
                         if (config.exportUndetected) captureUndetectedPage(document, pageIdx, file.name, pageIdx + 1)
                         if (config.unassignedAction == UnassignedAction.APPEND_TO_PREVIOUS && lastGroup != "Unassigned") {
                             woMap.getOrPut(lastGroup) { mutableListOf() }.add(pageIdx)
@@ -1068,6 +1219,7 @@ class PdfService {
                             onLog("  🔸 [${file.name}] P${pageIdx + 1}: Undetected → dropped")
                         }
                     }
+
                 }
 
                 if (woMap.isNotEmpty()) {
@@ -1101,7 +1253,10 @@ class PdfService {
      */
     private data class PositionedWord(val text: String, val boundingBox: java.awt.Rectangle)
 
-    private fun groupPositionedWords(words: List<PositionedWord>, toleranceFraction: Float = 0.55f): List<List<PositionedWord>> {
+    private fun groupPositionedWords(
+        words: List<PositionedWord>,
+        toleranceFraction: Float = 0.55f
+    ): List<List<PositionedWord>> {
         if (words.isEmpty()) return emptyList()
         val sorted = words.sortedWith(compareBy({ it.boundingBox.y }, { it.boundingBox.x }))
         val heights = sorted.map { it.boundingBox.height }.sorted()
@@ -1121,17 +1276,23 @@ class PdfService {
         return try {
             val words = mutableListOf<PositionedWord>()
             val stripper = object : PDFTextStripper() {
-                override fun writeString(text: String, textPositions: MutableList<org.apache.pdfbox.text.TextPosition>) {
+                override fun writeString(
+                    text: String,
+                    textPositions: MutableList<org.apache.pdfbox.text.TextPosition>
+                ) {
                     if (textPositions.isEmpty()) return
                     val x1 = textPositions.minOf { it.xDirAdj }
                     val y1 = textPositions.minOf { it.yDirAdj - it.heightDir }
                     val x2 = textPositions.maxOf { it.xDirAdj + it.widthDirAdj }
                     val y2 = textPositions.maxOf { it.yDirAdj }
-                    words += PositionedWord(text.trim(), java.awt.Rectangle(x1.toInt(), y1.toInt(), (x2 - x1).toInt(), (y2 - y1).toInt()))
+                    words += PositionedWord(
+                        text.trim(),
+                        java.awt.Rectangle(x1.toInt(), y1.toInt(), (x2 - x1).toInt(), (y2 - y1).toInt())
+                    )
                 }
             }
             stripper.startPage = pageIndex + 1
-            stripper.endPage   = pageIndex + 1
+            stripper.endPage = pageIndex + 1
             stripper.getText(doc)
 
             val filteredWords = words.filter { it.text.isNotBlank() }
@@ -1167,7 +1328,13 @@ class PdfService {
         val isKeyword = config.mode == ScanMode.KEYWORD_GROUP
 
         // Full-page preprocessing is computed lazily
-        val preparedFull: BufferedImage by lazy(LazyThreadSafetyMode.NONE) { fixImageForOcr(raw, dpi, config.scanQuality) }
+        val preparedFull: BufferedImage by lazy(LazyThreadSafetyMode.NONE) {
+            fixImageForOcr(
+                raw,
+                dpi,
+                config.scanQuality
+            )
+        }
 
         // If ScanArea is FULL_PAGE and we are not in keyword mode, we can try the region optimization first.
         // If we already cropped via ScanArea, just do a full scan of the cropped region.
@@ -1193,9 +1360,11 @@ class PdfService {
         val osdAngle = if (osdTess != null) {
             try {
                 val osdResult = osdTess.doOCR(raw)
-                val rotateVal = Regex("(?im)^\\s*Rotate\\s*:\\s*(\\d+)").find(osdResult)?.groupValues?.get(1)?.toIntOrNull()
+                val rotateVal =
+                    Regex("(?im)^\\s*Rotate\\s*:\\s*(\\d+)").find(osdResult)?.groupValues?.get(1)?.toIntOrNull()
                 val orientVal = if (rotateVal == null) {
-                    Regex("(?im)^\\s*Orientation in degrees\\s*:\\s*(\\d+)").find(osdResult)?.groupValues?.get(1)?.toIntOrNull()?.let { deg -> ((360 - deg) % 360) }
+                    Regex("(?im)^\\s*Orientation in degrees\\s*:\\s*(\\d+)").find(osdResult)?.groupValues?.get(1)
+                        ?.toIntOrNull()?.let { deg -> ((360 - deg) % 360) }
                 } else null
                 rotateVal ?: orientVal ?: 0
             } catch (e: Exception) {
@@ -1237,13 +1406,13 @@ class PdfService {
     ): String? {
         // Top 30% — most common header position
         val topCropH = (image.height * 0.30).toInt().coerceAtLeast(1)
-        val topCrop  = image.getSubimage(0, 0, image.width, topCropH)
+        val topCrop = image.getSubimage(0, 0, image.width, topCropH)
         saveDebugImage(topCrop, config, fName, pIdx, "$tag-TOP")
         val topResult = runOcr(topCrop, tess, config)
         if (topResult != null) return topResult
 
         // Bottom-right 40%×30% — engineering drawing title block zone
-        val brW = (image.width  * 0.40).toInt().coerceAtLeast(1)
+        val brW = (image.width * 0.40).toInt().coerceAtLeast(1)
         val brH = (image.height * 0.30).toInt().coerceAtLeast(1)
         val brCrop = image.getSubimage(image.width - brW, image.height - brH, brW, brH)
         saveDebugImage(brCrop, config, fName, pIdx, "$tag-BR")
@@ -1266,15 +1435,15 @@ class PdfService {
     ): String? {
         // Top 30% — most common header position
         val topCropH = (raw.height * 0.30).toInt().coerceAtLeast(1)
-        val topCrop  = raw.getSubimage(0, 0, raw.width, topCropH)
-        val topPrep  = fixImageForOcr(topCrop)
+        val topCrop = raw.getSubimage(0, 0, raw.width, topCropH)
+        val topPrep = fixImageForOcr(topCrop)
         saveDebugImage(topPrep, config, fName, pIdx, "$tag-TOP")
         val topResult = runOcr(topPrep, tess, config)
         if (topResult != null) return topResult
 
         // Bottom-right 40%×30% — engineering drawing title block zone
-        val brW    = (raw.width  * 0.40).toInt().coerceAtLeast(1)
-        val brH    = (raw.height * 0.30).toInt().coerceAtLeast(1)
+        val brW = (raw.width * 0.40).toInt().coerceAtLeast(1)
+        val brH = (raw.height * 0.30).toInt().coerceAtLeast(1)
         val brCrop = raw.getSubimage(raw.width - brW, raw.height - brH, brW, brH)
         val brPrep = fixImageForOcr(brCrop)
         saveDebugImage(brPrep, config, fName, pIdx, "$tag-BR")
@@ -1300,10 +1469,12 @@ class PdfService {
                 val height = (image.height * 0.30).toInt().coerceAtLeast(1)
                 image.getSubimage(0, 0, image.width, height)
             }
+
             ScanArea.TOP_HALF -> {
                 val height = (image.height * 0.50).toInt().coerceAtLeast(1)
                 image.getSubimage(0, 0, image.width, height)
             }
+
             ScanArea.BOTTOM_HALF -> {
                 val height = (image.height * 0.50).toInt().coerceAtLeast(1)
                 image.getSubimage(0, image.height - height, image.width, height)
@@ -1390,27 +1561,32 @@ class PdfService {
                 val numMatch = numRegex.find(w.text) ?: numRegex.find(normalized)
                 if (numMatch != null) {
                     val numBox = w.boundingBox
-                    
+
                     val isSameLine = kotlin.math.abs(labelBox.centerY - numBox.centerY) < labelBox.height
                     val isBelow = numBox.centerY > labelBox.centerY + labelBox.height * 0.25
-                    
+
                     val tolerance = numBox.width * 1.5
-                    val overlap = kotlin.math.max(0.0, kotlin.math.min(labelBox.maxX, numBox.maxX) - kotlin.math.max(labelBox.minX, numBox.minX))
+                    val overlap = kotlin.math.max(
+                        0.0,
+                        kotlin.math.min(labelBox.maxX, numBox.maxX) - kotlin.math.max(labelBox.minX, numBox.minX)
+                    )
                     val isColumnAligned = overlap > 0 || kotlin.math.abs(labelBox.centerX - numBox.centerX) < tolerance
-                    
+
                     val score = when {
                         isSameLine && numBox.x >= labelBox.x -> {
                             val dist = numBox.x - labelBox.maxX
                             if (dist < 0) 0.0 else dist
                         }
+
                         isBelow && isColumnAligned -> {
                             val dist = numBox.y - labelBox.maxY
                             val adjustedDist = if (dist < 0) 0.0 else dist
                             adjustedDist + 5000.0 // Heavy penalty so same-line wins
                         }
+
                         else -> 10000.0
                     }
-                    
+
                     if (score < 10000.0) {
                         candidates.add(numMatch.value to score)
                     }
@@ -1544,9 +1720,9 @@ class PdfService {
             if (i + 1 < lines.size) findNum(lines[i + 1])?.let { return it }
         }
 
-        val clean  = text.replace("\n", "  ")
+        val clean = text.replace("\n", "  ")
         val header = delimRegex.find(clean) ?: return null
-        val chunk  = clean.substring(
+        val chunk = clean.substring(
             header.range.last + 1,
             (header.range.last + 81).coerceAtMost(clean.length)
         )
@@ -1559,7 +1735,7 @@ class PdfService {
         scanQuality: ScanQuality = ScanQuality.NORMAL
     ): BufferedImage = OpenCvOps.prepareForOcr(
         original,
-        useDenoise  = scanQuality != ScanQuality.FAST,
+        useDenoise = scanQuality != ScanQuality.FAST,
         useAdaptive = true  // adaptive threshold at all DPIs — Otsu loses strokes on uneven scans
     )
 
@@ -1568,34 +1744,84 @@ class PdfService {
         doc.save(resolveCollision(originalFile.parentFile, "$safeWo.pdf"))
     }
 
-    private suspend fun saveSplitOutput(originalFile: File, doc: PDDocument, map: Map<String, List<Int>>, config: AppConfig = AppConfig()) {
-        // ── Create a subfolder for extracted files ──
+    /** Single shared output folder for KEYWORD_GROUP mode (created next to the source PDF). */
+    private val keywordOutputFolderName = "Extracted by keyword"
+
+    private suspend fun saveSplitOutput(
+        originalFile: File,
+        doc: PDDocument,
+        map: Map<String, List<Int>>,
+        config: AppConfig = AppConfig()
+    ) {
+        if (config.mode == ScanMode.KEYWORD_GROUP) {
+            saveKeywordOutput(originalFile, doc, map, config)
+            return
+        }
+
+        // ── Other modes (SPLIT_AND_ORGANIZE, …): behaviour unchanged ──
         val outputDir = File(originalFile.parentFile, originalFile.nameWithoutExtension)
         if (!outputDir.exists()) outputDir.mkdirs()
 
-        if (config.mode == ScanMode.KEYWORD_GROUP && config.keywordExtractSeparately) {
-            // ── Separate mode: one PDF per matched page with a counter ──
-            var counter = 1
-            map.forEach { (wo, pages) ->
-                if (wo == "Unassigned") return@forEach
-                pages.forEach { pageIdx ->
+        map.forEach { (wo, pages) ->
+            if (wo == "Unassigned") return@forEach
+            PDDocument().use { newDoc ->
+                pages.forEach { newDoc.importPage(doc.getPage(it)) }
+                val safeWo = wo.replace(Regex("[\\\\/:*?\"<>|]"), "-")
+                newDoc.save(resolveCollision(outputDir, "$safeWo.pdf"))
+            }
+        }
+    }
+
+    /**
+     * KEYWORD_GROUP output — always ONE folder ("Extracted by keyword") shared by all inputs:
+     *
+     *  • Append mode        → one PDF per SECTION: <original>_001.pdf, <original>_002.pdf, …
+     *                         (only ONE section → no counter, same name as the original)
+     *  • Drop mode          → one PDF with all matched pages, same name as the original
+     *  • Extract separately → one PDF per page: <original>_page1.pdf, _page2.pdf, …
+     */
+    private fun saveKeywordOutput(
+        originalFile: File,
+        doc: PDDocument,
+        map: Map<String, List<Int>>,
+        config: AppConfig
+    ) {
+        val sections = map.filterKeys { it != "Unassigned" }
+            .values
+            .map { it.distinct().sorted() }
+            .filter { it.isNotEmpty() }
+            .sortedBy { it.first() }                       // sections in original page order
+        if (sections.isEmpty()) return
+
+        val outputDir = File(originalFile.parentFile, keywordOutputFolderName).apply { mkdirs() }
+        val baseName = originalFile.nameWithoutExtension
+
+        when {
+            config.keywordExtractSeparately -> {
+                sections.flatten().distinct().sorted().forEachIndexed { i, pageIdx ->
                     PDDocument().use { newDoc ->
                         newDoc.importPage(doc.getPage(pageIdx))
-                        val safeDelim = config.delimiter.replace(Regex("[\\\\/:*?\"<>|]"), "-")
-                        val fileName = "${originalFile.nameWithoutExtension}_${safeDelim}_page$counter.pdf"
-                        newDoc.save(resolveCollision(outputDir, fileName))
-                        counter++
+                        newDoc.save(resolveCollision(outputDir, "${baseName}_page${i + 1}.pdf"))
                     }
                 }
             }
-        } else {
-            // ── Combined mode: one PDF per group (original behavior) ──
-            map.forEach { (wo, pages) ->
-                if (wo == "Unassigned") return@forEach
+
+            config.unassignedAction == UnassignedAction.APPEND_TO_PREVIOUS -> {
+                sections.forEachIndexed { i, pages ->
+                    PDDocument().use { newDoc ->
+                        pages.forEach { newDoc.importPage(doc.getPage(it)) }
+                        // Single section → same name as the original; several → add _001, _002, …
+                        val fileName = if (sections.size == 1) originalFile.name
+                        else "${baseName}_${(i + 1).toString().padStart(3, '0')}.pdf"
+                        newDoc.save(resolveCollision(outputDir, fileName))
+                    }
+                }
+            }
+
+            else -> {
                 PDDocument().use { newDoc ->
-                    pages.forEach { newDoc.importPage(doc.getPage(it)) }
-                    val safeWo = wo.replace(Regex("[\\\\/:*?\"<>|]"), "-")
-                    newDoc.save(resolveCollision(outputDir, "$safeWo.pdf"))
+                    sections.flatten().distinct().sorted().forEach { newDoc.importPage(doc.getPage(it)) }
+                    newDoc.save(resolveCollision(outputDir, originalFile.name))
                 }
             }
         }

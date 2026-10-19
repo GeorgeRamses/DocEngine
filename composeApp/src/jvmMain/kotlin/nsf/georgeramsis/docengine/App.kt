@@ -57,31 +57,43 @@ private data class UiPalette(
 )
 
 private val DarkPalette = UiPalette(
-    bgDeep = Color(0xFF0D1117), bgBase = Color(0xFF161B22), bgElevated = Color(0xFF21262D), bgSubtle = Color(0xFF30363D),
-    textPrimary = Color(0xFFE6EDF3), textSecondary = Color(0xFF8B949E), textMuted = Color(0xFF484F58), borderDefault = Color(0xFF30363D)
+    bgDeep = Color(0xFF0D1117),
+    bgBase = Color(0xFF161B22),
+    bgElevated = Color(0xFF21262D),
+    bgSubtle = Color(0xFF30363D),
+    textPrimary = Color(0xFFE6EDF3),
+    textSecondary = Color(0xFF8B949E),
+    textMuted = Color(0xFF484F58),
+    borderDefault = Color(0xFF30363D)
 )
 
 private val LightPalette = UiPalette(
-    bgDeep = Color(0xFFF7F8FA), bgBase = Color(0xFFFFFFFF), bgElevated = Color(0xFFF1F3F6), bgSubtle = Color(0xFFE8ECF2),
-    textPrimary = Color(0xFF111827), textSecondary = Color(0xFF4B5563), textMuted = Color(0xFF9CA3AF), borderDefault = Color(0xFFE2E8F0)
+    bgDeep = Color(0xFFF7F8FA),
+    bgBase = Color(0xFFFFFFFF),
+    bgElevated = Color(0xFFF1F3F6),
+    bgSubtle = Color(0xFFE8ECF2),
+    textPrimary = Color(0xFF111827),
+    textSecondary = Color(0xFF4B5563),
+    textMuted = Color(0xFF9CA3AF),
+    borderDefault = Color(0xFFE2E8F0)
 )
 
 private val LocalPalette = staticCompositionLocalOf { DarkPalette }
 
-private val AccentBlue   = Color(0xFF58A6FF)
-private val AccentGreen  = Color(0xFF3FB950)
-private val AccentRed    = Color(0xFFF85149)
+private val AccentBlue = Color(0xFF58A6FF)
+private val AccentGreen = Color(0xFF3FB950)
+private val AccentRed = Color(0xFFF85149)
 private val AccentYellow = Color(0xFFD29922)
 private val AccentOrange = Color(0xFFF0883E)
 private val AccentPurple = Color(0xFFA5B4FC)
 
-private val BgDeep:        Color @Composable get() = LocalPalette.current.bgDeep
-private val BgBase:        Color @Composable get() = LocalPalette.current.bgBase
-private val BgElevated:    Color @Composable get() = LocalPalette.current.bgElevated
-private val BgSubtle:      Color @Composable get() = LocalPalette.current.bgSubtle
-private val TextPrimary:   Color @Composable get() = LocalPalette.current.textPrimary
+private val BgDeep: Color @Composable get() = LocalPalette.current.bgDeep
+private val BgBase: Color @Composable get() = LocalPalette.current.bgBase
+private val BgElevated: Color @Composable get() = LocalPalette.current.bgElevated
+private val BgSubtle: Color @Composable get() = LocalPalette.current.bgSubtle
+private val TextPrimary: Color @Composable get() = LocalPalette.current.textPrimary
 private val TextSecondary: Color @Composable get() = LocalPalette.current.textSecondary
-private val TextMuted:     Color @Composable get() = LocalPalette.current.textMuted
+private val TextMuted: Color @Composable get() = LocalPalette.current.textMuted
 private val BorderDefault: Color @Composable get() = LocalPalette.current.borderDefault
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,7 +103,7 @@ private val BorderDefault: Color @Composable get() = LocalPalette.current.border
 @Composable
 private fun AppTheme(isDark: Boolean, content: @Composable () -> Unit) {
     val palette = if (isDark) DarkPalette else LightPalette
-    val colors  = if (isDark) darkColors(
+    val colors = if (isDark) darkColors(
         primary = AccentBlue, primaryVariant = Color(0xFF1F6FEB), secondary = AccentGreen,
         background = palette.bgDeep, surface = palette.bgBase,
         onPrimary = Color.White, onSecondary = Color.White,
@@ -107,16 +119,35 @@ private fun AppTheme(isDark: Boolean, content: @Composable () -> Unit) {
         MaterialTheme(
             colors = colors,
             typography = Typography(
-                h5        = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.3).sp, color = palette.textPrimary),
-                h6        = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.2).sp, color = palette.textPrimary),
-                subtitle1 = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium,   color = palette.textPrimary),
-                subtitle2 = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.8.sp, color = palette.textSecondary),
-                body1     = TextStyle(fontSize = 13.sp, color = palette.textPrimary),
-                body2     = TextStyle(fontSize = 12.sp, color = palette.textSecondary),
-                caption   = TextStyle(fontSize = 11.sp, color = palette.textSecondary),
-                button    = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.3.sp),
+                h5 = TextStyle(
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.3).sp,
+                    color = palette.textPrimary
+                ),
+                h6 = TextStyle(
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (-0.2).sp,
+                    color = palette.textPrimary
+                ),
+                subtitle1 = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium, color = palette.textPrimary),
+                subtitle2 = TextStyle(
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.8.sp,
+                    color = palette.textSecondary
+                ),
+                body1 = TextStyle(fontSize = 13.sp, color = palette.textPrimary),
+                body2 = TextStyle(fontSize = 12.sp, color = palette.textSecondary),
+                caption = TextStyle(fontSize = 11.sp, color = palette.textSecondary),
+                button = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.3.sp),
             ),
-            shapes = Shapes(small = RoundedCornerShape(6.dp), medium = RoundedCornerShape(8.dp), large = RoundedCornerShape(10.dp)),
+            shapes = Shapes(
+                small = RoundedCornerShape(6.dp),
+                medium = RoundedCornerShape(8.dp),
+                large = RoundedCornerShape(10.dp)
+            ),
             content = content
         )
     }
@@ -129,12 +160,20 @@ private fun AppTheme(isDark: Boolean, content: @Composable () -> Unit) {
 @Composable
 private fun SectionLabel(text: String, badge: String? = null, badgeColor: Color = AccentBlue) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 10.dp)) {
-        Text(text.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp, color = TextSecondary)
+        Text(
+            text.uppercase(),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.2.sp,
+            color = TextSecondary
+        )
         if (badge != null) {
             Spacer(Modifier.width(8.dp))
             Surface(color = badgeColor.copy(alpha = 0.15f), shape = RoundedCornerShape(4.dp)) {
-                Text(badge, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, color = badgeColor,
-                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp))
+                Text(
+                    badge, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, color = badgeColor,
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                )
             }
         }
     }
@@ -153,26 +192,36 @@ private fun OptionRow(
     badge: String? = null, badgeColor: Color = AccentGreen, onClick: () -> Unit
 ) {
     val borderColor = if (selected) AccentBlue else BorderDefault
-    val bgColor     = if (selected) AccentBlue.copy(alpha = 0.07f) else Color.Transparent
+    val bgColor = if (selected) AccentBlue.copy(alpha = 0.07f) else Color.Transparent
     Surface(
         color = bgColor, shape = RoundedCornerShape(6.dp),
         border = BorderStroke(1.dp, borderColor),
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).clickable(enabled = enabled, onClick = onClick)
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp))
+            .clickable(enabled = enabled, onClick = onClick)
     ) {
-        Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected = selected, onClick = null, enabled = enabled,
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(
+                selected = selected, onClick = null, enabled = enabled,
                 colors = RadioButtonDefaults.colors(selectedColor = AccentBlue, unselectedColor = TextMuted),
-                modifier = Modifier.size(14.dp))
+                modifier = Modifier.size(14.dp)
+            )
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium,
-                        color = if (selected) TextPrimary else TextSecondary)
+                    Text(
+                        label, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                        color = if (selected) TextPrimary else TextSecondary
+                    )
                     if (badge != null) {
                         Spacer(Modifier.width(6.dp))
                         Surface(color = badgeColor.copy(alpha = 0.15f), shape = RoundedCornerShape(3.dp)) {
-                            Text(badge, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = badgeColor,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp))
+                            Text(
+                                badge, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = badgeColor,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                            )
                         }
                     }
                 }
@@ -213,9 +262,15 @@ private fun ThemedCheckbox(
             .padding(horizontal = 6.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Checkbox(checked = checked, onCheckedChange = null, enabled = enabled,
-            colors = CheckboxDefaults.colors(checkedColor = AccentBlue, uncheckedColor = TextMuted, checkmarkColor = Color.White),
-            modifier = Modifier.size(16.dp))
+        Checkbox(
+            checked = checked, onCheckedChange = null, enabled = enabled,
+            colors = CheckboxDefaults.colors(
+                checkedColor = AccentBlue,
+                uncheckedColor = TextMuted,
+                checkmarkColor = Color.White
+            ),
+            modifier = Modifier.size(16.dp)
+        )
         Spacer(Modifier.width(10.dp))
         Text(label, fontSize = 12.sp, color = if (enabled) TextPrimary else TextSecondary)
     }
@@ -224,18 +279,21 @@ private fun ThemedCheckbox(
 @OptIn(ExperimentalResourceApi::class)
 @Composable
 private fun ThemeSwitchButton(isDark: Boolean, enabled: Boolean, onToggle: () -> Unit) {
-    val icon   = if (isDark) Res.drawable.sun else Res.drawable.moon
-    val label  = if (isDark) "Light" else "Dark"
-    val bg     = if (isDark) BgElevated else BgSubtle
+    val icon = if (isDark) Res.drawable.sun else Res.drawable.moon
+    val label = if (isDark) "Light" else "Dark"
+    val bg = if (isDark) BgElevated else BgSubtle
     val border = if (isDark) AccentBlue.copy(alpha = 0.45f) else BorderDefault
     Surface(
         color = bg, border = BorderStroke(1.dp, border), shape = RoundedCornerShape(10.dp),
-        modifier = Modifier.height(32.dp).clip(RoundedCornerShape(10.dp)).clickable(enabled = enabled, onClick = onToggle)
+        modifier = Modifier.height(32.dp).clip(RoundedCornerShape(10.dp))
+            .clickable(enabled = enabled, onClick = onToggle)
     ) {
         Row(modifier = Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Image(painter = painterResource(icon), contentDescription = "Toggle theme",
+            Image(
+                painter = painterResource(icon), contentDescription = "Toggle theme",
                 modifier = Modifier.size(16.dp),
-                colorFilter = ColorFilter.tint(if (isDark) AccentYellow else AccentBlue))
+                colorFilter = ColorFilter.tint(if (isDark) AccentYellow else AccentBlue)
+            )
             Spacer(Modifier.width(6.dp))
             Text("Switch to $label", fontSize = 11.sp, color = TextSecondary)
         }
@@ -254,23 +312,37 @@ private fun FolderPickerCard(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(color = if (hasPath) AccentGreen.copy(alpha = 0.15f) else BgSubtle, shape = RoundedCornerShape(3.dp)) {
-                    Text(if (hasPath) "✓" else "–", fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                Surface(
+                    color = if (hasPath) AccentGreen.copy(alpha = 0.15f) else BgSubtle,
+                    shape = RoundedCornerShape(3.dp)
+                ) {
+                    Text(
+                        if (hasPath) "✓" else "–", fontSize = 10.sp, fontWeight = FontWeight.Bold,
                         color = if (hasPath) AccentGreen else TextMuted,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
                 }
                 Spacer(Modifier.width(8.dp))
                 Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
             }
             if (hasPath) {
                 Spacer(Modifier.height(6.dp))
-                Text(path!!.absolutePath, fontSize = 11.sp, color = TextPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    path!!.absolutePath,
+                    fontSize = 11.sp,
+                    color = TextPrimary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             Spacer(Modifier.height(10.dp))
             OutlinedButton(
                 onClick = onPick, modifier = Modifier.fillMaxWidth().height(30.dp), enabled = enabled,
                 shape = RoundedCornerShape(5.dp),
-                border = BorderStroke(1.dp, if (enabled) AccentBlue.copy(alpha = 0.45f) else TextMuted.copy(alpha = 0.2f)),
+                border = BorderStroke(
+                    1.dp,
+                    if (enabled) AccentBlue.copy(alpha = 0.45f) else TextMuted.copy(alpha = 0.2f)
+                ),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentBlue)
             ) { Text(buttonLabel, fontSize = 11.sp, fontWeight = FontWeight.Medium) }
@@ -285,7 +357,7 @@ private fun FolderPickerCard(
 @Composable
 private fun InfoBox(title: String, body: String, accentColor: Color) {
     Surface(
-        color  = accentColor.copy(alpha = 0.05f), shape = RoundedCornerShape(6.dp),
+        color = accentColor.copy(alpha = 0.05f), shape = RoundedCornerShape(6.dp),
         border = BorderStroke(1.dp, accentColor.copy(alpha = 0.20f)), modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -303,9 +375,10 @@ private fun InfoBox(title: String, body: String, accentColor: Color) {
 @Composable
 private fun logColor(msg: String): Color = when {
     msg.contains("✅") || msg.startsWith(">>> Process Completed") ||
-    msg.contains("PAGE MERGE COMPLETE") || msg.contains("PROCESS COMPLETE") ||
-    msg.contains("AUTO-ROTATE COMPLETE") || msg.contains("FIND & REPLACE COMPLETE") ||
-    msg.contains("DELETE BY KEYWORD COMPLETE") -> AccentGreen
+            msg.contains("PAGE MERGE COMPLETE") || msg.contains("PROCESS COMPLETE") ||
+            msg.contains("AUTO-ROTATE COMPLETE") || msg.contains("FIND & REPLACE COMPLETE") ||
+            msg.contains("DELETE BY KEYWORD COMPLETE") -> AccentGreen
+
     msg.contains("❌") || msg.contains("ERROR") || msg.contains("CRITICAL") || msg.contains("FATAL") -> AccentRed
     msg.contains("⚠️") || msg.contains("Warning") || msg.contains("⚠") -> AccentYellow
     msg.contains("🔹") -> AccentBlue
@@ -327,116 +400,139 @@ private fun logColor(msg: String): Color = when {
 @OptIn(ExperimentalResourceApi::class)
 fun App() {
     val viewModel = remember { PdfViewModel() }
-    val scope     = rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
 
     val isScanning by viewModel.isScanning.collectAsState()
-    val progress   by viewModel.progress.collectAsState()
-    val stats      by viewModel.completionStats.collectAsState()
+    val progress by viewModel.progress.collectAsState()
+    val stats by viewModel.completionStats.collectAsState()
 
     // ── Config state ──────────────────────────────────────────────────────────
-    var mode              by remember { mutableStateOf(ScanMode.RENAME_ONLY) }
-    var delimiter         by remember { mutableStateOf("Prefix") }
-    var pattern           by remember { mutableStateOf("000000") }
-    var dropUnassigned    by remember { mutableStateOf(false) }
-    var autoRotate        by remember { mutableStateOf(true) }
-    var debugMode         by remember { mutableStateOf(false) }
-    var exportUndetected  by remember { mutableStateOf(false) }
-    var extractAndDelete  by remember { mutableStateOf(false) }
+    var mode by remember { mutableStateOf(ScanMode.RENAME_ONLY) }
+    var delimiter by remember { mutableStateOf("") }
+    var pattern by remember { mutableStateOf("000000") }
+    var dropUnassigned by remember { mutableStateOf(false) }
+    var autoRotate by remember { mutableStateOf(true) }
+    var debugMode by remember { mutableStateOf(false) }
+    var exportUndetected by remember { mutableStateOf(false) }
+    var extractAndDelete by remember { mutableStateOf(false) }
     var keywordExtractSeparately by remember { mutableStateOf(false) }
-    var scanArea          by remember { mutableStateOf(ScanArea.FULL_PAGE) }
-    var scanQuality       by remember { mutableStateOf(ScanQuality.NORMAL) }
-    var mergeOperation    by remember { mutableStateOf(MergeOperation.REPLACE_PAGE) }
-    var targetPageNumber  by remember { mutableStateOf("1") }
-    var folderBPath       by remember { mutableStateOf<File?>(null) }
-    var lastDirectory     by remember { mutableStateOf<File?>(null) }
+    var scanArea by remember { mutableStateOf(ScanArea.FULL_PAGE) }
+    var scanQuality by remember { mutableStateOf(ScanQuality.NORMAL) }
+    var mergeOperation by remember { mutableStateOf(MergeOperation.REPLACE_PAGE) }
+    var targetPageNumber by remember { mutableStateOf("1") }
+    var folderBPath by remember { mutableStateOf<File?>(null) }
+    var lastDirectory by remember { mutableStateOf<File?>(null) }
 
     // ── Auto-Rotate state ──────────────────────────────────────────────────────
-    var enableCheckpoint  by remember { mutableStateOf(false) }
-    var diagMode          by remember { mutableStateOf(false) }
+    var enableCheckpoint by remember { mutableStateOf(false) }
+    var diagMode by remember { mutableStateOf(false) }
 
     // ── Text Replace state ────────────────────────────────────────────────────
-    var searchText        by remember { mutableStateOf("") }
-    var replaceText       by remember { mutableStateOf("") }
+    var searchText by remember { mutableStateOf("") }
+    var replaceText by remember { mutableStateOf("") }
     var detectionAccuracy by remember { mutableStateOf(DetectionAccuracy.BALANCED) }
-    var maxCoverageLines  by remember { mutableStateOf("2") }
+    var maxCoverageLines by remember { mutableStateOf("2") }
     // ── Add Footer state ──────────────────────────────────────────────────────
-    var footerLeftText    by remember { mutableStateOf("") }
-    var footerCenterText  by remember { mutableStateOf("") }
-    var footerRightText   by remember { mutableStateOf("Page {page} / {total}") }
-    var footerHeight      by remember { mutableStateOf("20") }
-    var footerFontSize    by remember { mutableStateOf("9") }
-    var footerPages       by remember { mutableStateOf("") }
+    var footerLeftText by remember { mutableStateOf("") }
+    var footerCenterText by remember { mutableStateOf("") }
+    var footerRightText by remember { mutableStateOf("Page {page} / {total}") }
+    var footerHeight by remember { mutableStateOf("20") }
+    var footerFontSize by remember { mutableStateOf("9") }
+    var footerPages by remember { mutableStateOf("") }
     // ── Handwriting Extract state ─────────────────────────────────────────────
-    var handwritingConfidence  by remember { mutableStateOf("25") }
-    var handwritingSaveReport  by remember { mutableStateOf(true) }
-    var handwritingTextOnly    by remember { mutableStateOf(false) }
+    var handwritingConfidence by remember { mutableStateOf("25") }
+    var handwritingSaveReport by remember { mutableStateOf(true) }
+    var handwritingTextOnly by remember { mutableStateOf(false) }
+    var isHover by remember { mutableStateOf(false) }
 
     // ── Theme — loaded from and saved to AppPreferences ───────────────────────
     var isDarkTheme by remember { mutableStateOf(AppPreferences.isDarkTheme) }
 
     val runScan: (List<File>) -> Unit = { files ->
         val inputFiles = files.flatMap { file ->
-            if (file.isDirectory) {
-                file.walkTopDown().filter { it.extension.equals("pdf", ignoreCase = true) }.toList()
-            } else {
-                listOf(file)
+            when {
+                file.isDirectory -> file.walkTopDown()
+                    .filter {
+                        it.isFile && it.extension.equals("pdf", ignoreCase = true) &&
+                            !it.toPath().any { part -> part.toString().equals("Extracted by size", ignoreCase = true) }
+                    }
+                    .toList()
+
+                file.extension.equals("pdf", ignoreCase = true) -> listOf(file)
+                else -> emptyList()
             }
         }
         if (inputFiles.isNotEmpty()) {
             viewModel.startScanning(
                 inputFiles,
                 AppConfig(
-                    mode              = mode,
-                    delimiter         = delimiter,
-                    pattern           = pattern.takeIf { it.isNotBlank() } ?: "000000",
-                    unassignedAction  = if (dropUnassigned) UnassignedAction.DROP else UnassignedAction.APPEND_TO_PREVIOUS,
-                    autoRotate        = autoRotate,
-                    debugMode         = debugMode,
-                    exportUndetected  = exportUndetected,
-                    extractAndDelete  = extractAndDelete,
-                    mergeOperation    = mergeOperation,
-                    targetPageNumber  = targetPageNumber.toIntOrNull() ?: 1,
-                    sourceFolderB     = folderBPath,
-                    scanArea          = scanArea,
-                    scanQuality       = scanQuality,
-                    enableCheckpoint  = enableCheckpoint,
-                    diagMode          = diagMode,
-                    searchText        = searchText,
-                    replaceText       = replaceText,
+                    mode = mode,
+                    delimiter = delimiter,
+                    pattern = pattern.takeIf { it.isNotBlank() } ?: "000000",
+                    unassignedAction = if (dropUnassigned) UnassignedAction.DROP else UnassignedAction.APPEND_TO_PREVIOUS,
+                    autoRotate = autoRotate,
+                    debugMode = debugMode,
+                    exportUndetected = exportUndetected,
+                    extractAndDelete = extractAndDelete,
+                    mergeOperation = mergeOperation,
+                    targetPageNumber = targetPageNumber.toIntOrNull() ?: 1,
+                    sourceFolderB = folderBPath,
+                    scanArea = scanArea,
+                    scanQuality = scanQuality,
+                    enableCheckpoint = enableCheckpoint,
+                    diagMode = diagMode,
+                    searchText = searchText,
+                    replaceText = replaceText,
                     detectionAccuracy = detectionAccuracy,
-                    maxCoverageLines  = maxCoverageLines.toIntOrNull() ?: 2,
-                    footerLeftText    = footerLeftText,
-                    footerCenterText  = footerCenterText,
-                    footerRightText   = footerRightText,
-                    footerHeight      = footerHeight.toFloatOrNull() ?: 20f,
-                    footerFontSize    = footerFontSize.toFloatOrNull() ?: 9f,
-                    footerPages       = footerPages,
+                    maxCoverageLines = maxCoverageLines.toIntOrNull() ?: 2,
+                    footerLeftText = footerLeftText,
+                    footerCenterText = footerCenterText,
+                    footerRightText = footerRightText,
+                    footerHeight = footerHeight.toFloatOrNull() ?: 20f,
+                    footerFontSize = footerFontSize.toFloatOrNull() ?: 9f,
+                    footerPages = footerPages,
                     handwritingMinConfidence = (handwritingConfidence.toIntOrNull() ?: 25) / 100.0,
-                    handwritingSaveReport    = handwritingSaveReport,
-                    handwritingTextOnly      = handwritingTextOnly,
+                    handwritingSaveReport = handwritingSaveReport,
+                    handwritingTextOnly = handwritingTextOnly,
                     keywordExtractSeparately = keywordExtractSeparately
                 )
             )
         }
     }
 
-    val needsFolderB  = mode == ScanMode.PAGE_MERGE && folderBPath == null
-    val needsSearch   = mode == ScanMode.TEXT_REPLACE && searchText.isBlank()
-    val isBlocked     = needsFolderB || needsSearch
+    val needsFolderB = mode == ScanMode.PAGE_MERGE && folderBPath == null
+    val needsSearch = mode == ScanMode.TEXT_REPLACE && searchText.isBlank()
+    val isBlocked = needsFolderB || needsSearch
+
 
     @OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
     val dragAndDropTarget = remember {
         object : DragAndDropTarget {
             override fun onDrop(event: DragAndDropEvent): Boolean {
+                isHover = false
                 if (isScanning || isBlocked) return false
                 val dragData = event.dragData()
                 if (dragData is DragData.FilesList) {
                     val files = dragData.readFiles().map { File(URI(it).path) }
+                    val hasPdf = files.any {
+                        it.isDirectory || it.extension.equals("pdf", ignoreCase = true)
+                    }
+                    if (!hasPdf) return false
                     lastDirectory = files.firstOrNull()?.parentFile
                     runScan(files)
                     return true
                 }
                 return false
+            }
+
+            override fun onExited(event: DragAndDropEvent) {
+                isHover = false
+                super.onExited(event)
+            }
+
+            override fun onEntered(event: DragAndDropEvent) {
+                isHover = true
+                super.onEntered(event)
             }
         }
     }
@@ -447,11 +543,8 @@ fun App() {
             Modifier
                 .fillMaxSize()
                 .background(BgDeep)
-                .dragAndDropTarget(
-                    shouldStartDragAndDrop = { true },
-                    target = dragAndDropTarget
-                )
         ) {
+
             Row(Modifier.fillMaxSize()) {
 
                 // ═══════════════════════════════════════════════════════════
@@ -465,8 +558,10 @@ fun App() {
                     // ── Header ────────────────────────────────────────────────
                     Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Surface(color = AccentBlue.copy(alpha = 0.12f), shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.size(38.dp)) {
+                            Surface(
+                                color = AccentBlue.copy(alpha = 0.12f), shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.size(38.dp)
+                            ) {
                                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     Text("⚙", fontSize = 19.sp)
                                 }
@@ -474,8 +569,10 @@ fun App() {
                             Spacer(Modifier.width(12.dp))
                             Column {
                                 Text("DocEngine", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                                Text("OCR  ·  Split  ·  Rename  ·  Merge  ·  Rotate  ·  Replace",
-                                    fontSize = 11.sp, color = TextMuted, letterSpacing = 0.3.sp)
+                                Text(
+                                    "OCR  ·  Split  ·  Rename  ·  Merge  ·  Rotate  ·  Replace",
+                                    fontSize = 11.sp, color = TextMuted, letterSpacing = 0.3.sp
+                                )
                             }
                             Spacer(Modifier.weight(1f))
                             ThemeSwitchButton(isDarkTheme, !isScanning) {
@@ -494,22 +591,86 @@ fun App() {
                         // ── Operation Mode ──────────────────────────────────────
                         SectionLabel("Operation Mode")
                         Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            OptionRow("Rename File Only",       "Scan page 1 → rename by matched pattern",                  mode == ScanMode.RENAME_ONLY,       !isScanning) { mode = ScanMode.RENAME_ONLY }
-                            OptionRow("Split by Number",        "Group and split pages by matched pattern",                 mode == ScanMode.SPLIT_AND_ORGANIZE,!isScanning) { mode = ScanMode.SPLIT_AND_ORGANIZE }
-                            OptionRow("Extract by Keyword",     "Split pages by text keyword match",                        mode == ScanMode.KEYWORD_GROUP,     !isScanning) { mode = ScanMode.KEYWORD_GROUP }
-                            OptionRow("Delete Pages by Keyword","Remove every page that contains a word or phrase",         mode == ScanMode.DELETE_BY_KEYWORD, !isScanning, badgeColor = AccentRed) { mode = ScanMode.DELETE_BY_KEYWORD }
-                            OptionRow("Page Merge / Replace",   "Replace or insert pages between PDFs",                    mode == ScanMode.PAGE_MERGE,        !isScanning, badge = "NEW", badgeColor = AccentGreen) { mode = ScanMode.PAGE_MERGE }
-                            OptionRow("Auto-Rotate Pages",      "3-stage OCR engine corrects skewed/rotated pages in-place",mode == ScanMode.AUTO_ROTATE,       !isScanning, badge = "NEW", badgeColor = AccentPurple) { mode = ScanMode.AUTO_ROTATE }
-                            OptionRow("Find & Replace Text",    "Fuzzy OCR-aware text search with visual replacement",     mode == ScanMode.TEXT_REPLACE,      !isScanning, badge = "NEW", badgeColor = AccentOrange) { mode = ScanMode.TEXT_REPLACE }
-                            OptionRow("Add Footer",             "Expand each page and stamp a 3-zone footer band",         mode == ScanMode.ADD_FOOTER,        !isScanning, badge = "NEW", badgeColor = AccentBlue)   { mode = ScanMode.ADD_FOOTER }
-                            OptionRow("Handwriting Extract",    "Detect & extract handwritten annotations from scanned PDFs",mode == ScanMode.HANDWRITING_EXTRACT,!isScanning, badge = "NEW", badgeColor = AccentPurple) { mode = ScanMode.HANDWRITING_EXTRACT }
+                            OptionRow(
+                                "Rename File Only",
+                                "Scan page 1 → rename by matched pattern",
+                                mode == ScanMode.RENAME_ONLY,
+                                !isScanning
+                            ) { mode = ScanMode.RENAME_ONLY }
+                            OptionRow(
+                                "Split by Number",
+                                "Group and split pages by matched pattern",
+                                mode == ScanMode.SPLIT_AND_ORGANIZE,
+                                !isScanning
+                            ) { mode = ScanMode.SPLIT_AND_ORGANIZE }
+                            OptionRow(
+                                "Extract by Keyword",
+                                "Split pages by text keyword match",
+                                mode == ScanMode.KEYWORD_GROUP,
+                                !isScanning
+                            ) { mode = ScanMode.KEYWORD_GROUP }
+                            OptionRow(
+                                "Delete Pages by Keyword",
+                                "Remove every page that contains a word or phrase",
+                                mode == ScanMode.DELETE_BY_KEYWORD,
+                                !isScanning,
+                                badgeColor = AccentRed
+                            ) { mode = ScanMode.DELETE_BY_KEYWORD }
+                            OptionRow(
+                                "Page Merge / Replace",
+                                "Replace or insert pages between PDFs",
+                                mode == ScanMode.PAGE_MERGE,
+                                !isScanning,
+                                badge = "NEW",
+                                badgeColor = AccentGreen
+                            ) { mode = ScanMode.PAGE_MERGE }
+                            OptionRow(
+                                "Auto-Rotate Pages",
+                                "3-stage OCR engine corrects skewed/rotated pages in-place",
+                                mode == ScanMode.AUTO_ROTATE,
+                                !isScanning,
+                                badge = "NEW",
+                                badgeColor = AccentPurple
+                            ) { mode = ScanMode.AUTO_ROTATE }
+                            OptionRow(
+                                "Find & Replace Text",
+                                "Fuzzy OCR-aware text search with visual replacement",
+                                mode == ScanMode.TEXT_REPLACE,
+                                !isScanning,
+                                badge = "NEW",
+                                badgeColor = AccentOrange
+                            ) { mode = ScanMode.TEXT_REPLACE }
+                            OptionRow(
+                                "Add Footer",
+                                "Expand each page and stamp a 3-zone footer band",
+                                mode == ScanMode.ADD_FOOTER,
+                                !isScanning,
+                                badge = "NEW",
+                                badgeColor = AccentBlue
+                            ) { mode = ScanMode.ADD_FOOTER }
+                            OptionRow(
+                                "Handwriting Extract",
+                                "Detect & extract handwritten annotations from scanned PDFs",
+                                mode == ScanMode.HANDWRITING_EXTRACT,
+                                !isScanning,
+                                badge = "NEW",
+                                badgeColor = AccentPurple
+                            ) { mode = ScanMode.HANDWRITING_EXTRACT }
+                            OptionRow(
+                                "Extract by Page Size",
+                                "Save A4 and A3 pages into separate folders",
+                                mode == ScanMode.EXTRACT_BY_PAGE_SIZE,
+                                !isScanning,
+                                badge = "NEW",
+                                badgeColor = AccentGreen
+                            ) { mode = ScanMode.EXTRACT_BY_PAGE_SIZE }
                         }
 
                         ConfigDivider()
 
                         // ── Mode-Specific Config ────────────────────────────────
                         when (mode) {
-                            ScanMode.PAGE_MERGE   -> PageMergeConfig(
+                            ScanMode.PAGE_MERGE -> PageMergeConfig(
                                 mergeOperation = mergeOperation, targetPageNumber = targetPageNumber,
                                 folderBPath = folderBPath, isScanning = isScanning,
                                 onMergeOpChange = { mergeOperation = it },
@@ -525,12 +686,14 @@ fun App() {
                                         folderBPath = chooser.selectedFile
                                 }
                             )
-                            ScanMode.AUTO_ROTATE  -> AutoRotateConfig(
+
+                            ScanMode.AUTO_ROTATE -> AutoRotateConfig(
                                 enableCheckpoint = enableCheckpoint, diagMode = diagMode,
                                 isScanning = isScanning,
                                 onEnableCheckpointChange = { enableCheckpoint = it },
                                 onDiagModeChange = { diagMode = it }
                             )
+
                             ScanMode.TEXT_REPLACE -> TextReplaceConfig(
                                 searchText = searchText, replaceText = replaceText,
                                 detectionAccuracy = detectionAccuracy, maxCoverageLines = maxCoverageLines,
@@ -540,33 +703,45 @@ fun App() {
                                 onAccuracyChange = { detectionAccuracy = it },
                                 onMaxLinesChange = { if (it.all(Char::isDigit)) maxCoverageLines = it }
                             )
+
                             ScanMode.ADD_FOOTER -> FooterConfig(
-                                leftText       = footerLeftText,
-                                centerText     = footerCenterText,
-                                rightText      = footerRightText,
-                                height         = footerHeight,
-                                fontSize       = footerFontSize,
-                                pages          = footerPages,
-                                isScanning     = isScanning,
-                                onLeftChange   = { footerLeftText   = it },
+                                leftText = footerLeftText,
+                                centerText = footerCenterText,
+                                rightText = footerRightText,
+                                height = footerHeight,
+                                fontSize = footerFontSize,
+                                pages = footerPages,
+                                isScanning = isScanning,
+                                onLeftChange = { footerLeftText = it },
                                 onCenterChange = { footerCenterText = it },
-                                onRightChange  = { footerRightText  = it },
+                                onRightChange = { footerRightText = it },
                                 onHeightChange = { if (it.all(Char::isDigit)) footerHeight = it },
                                 onFontSizeChange = { if (it.all(Char::isDigit)) footerFontSize = it },
-                                onPagesChange  = { footerPages = it }
+                                onPagesChange = { footerPages = it }
                             )
+
                             ScanMode.HANDWRITING_EXTRACT -> HandwritingConfig(
-                                minConfidence       = handwritingConfidence,
-                                saveReport          = handwritingSaveReport,
-                                textOnly            = handwritingTextOnly,
-                                isScanning          = isScanning,
+                                minConfidence = handwritingConfidence,
+                                saveReport = handwritingSaveReport,
+                                textOnly = handwritingTextOnly,
+                                isScanning = isScanning,
                                 onMinConfidenceChange = {
                                     if (it.all(Char::isDigit) && (it.toIntOrNull() ?: 0) <= 100)
                                         handwritingConfidence = it
                                 },
-                                onSaveReportChange  = { handwritingSaveReport = it },
-                                onTextOnlyChange    = { handwritingTextOnly = it }
+                                onSaveReportChange = { handwritingSaveReport = it },
+                                onTextOnlyChange = { handwritingTextOnly = it }
                             )
+
+                            ScanMode.EXTRACT_BY_PAGE_SIZE -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("Extract A4 and A3 pages", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                                Text(
+                                    "Each source PDF is processed separately. Matching pages are saved under " +
+                                        "Extracted by size/A4 or Extracted by size/A3, keeping the source filename.",
+                                    fontSize = 11.sp, color = TextMuted
+                                )
+                            }
+
                             else -> OcrConfig(
                                 mode = mode, delimiter = delimiter, pattern = pattern,
                                 autoRotate = autoRotate, debugMode = debugMode,
@@ -595,11 +770,23 @@ fun App() {
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             if (isScanning) {
-                                Row(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically) {
-                                    Text("Processing…", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = AccentBlue)
-                                    Text("${(progress * 100).toInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "Processing…",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = AccentBlue
+                                    )
+                                    Text(
+                                        "${(progress * 100).toInt()}%",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
                                 }
                                 LinearProgressIndicator(
                                     progress = progress,
@@ -613,21 +800,27 @@ fun App() {
                                     shape = RoundedCornerShape(6.dp),
                                     elevation = ButtonDefaults.elevation(0.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        backgroundColor = AccentRed.copy(alpha = 0.12f), contentColor = AccentRed),
+                                        backgroundColor = AccentRed.copy(alpha = 0.12f), contentColor = AccentRed
+                                    ),
                                     border = BorderStroke(1.dp, AccentRed.copy(alpha = 0.35f))
                                 ) { Text("Cancel Operation", fontWeight = FontWeight.SemiBold) }
                             } else {
                                 // Stats strip
                                 AnimatedVisibility(visible = stats != null) {
                                     stats?.let { s ->
-                                        Surface(color = BgElevated, shape = RoundedCornerShape(6.dp),
+                                        Surface(
+                                            color = BgElevated, shape = RoundedCornerShape(6.dp),
                                             border = BorderStroke(1.dp, BorderDefault),
-                                            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)) {
-                                            Row(modifier = Modifier.padding(10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                                StatChip("Total",   s.total.toString(),   TextSecondary)
-                                                StatChip("OK",      s.success.toString(), AccentGreen)
+                                            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(10.dp),
+                                                horizontalArrangement = Arrangement.SpaceEvenly
+                                            ) {
+                                                StatChip("Total", s.total.toString(), TextSecondary)
+                                                StatChip("OK", s.success.toString(), AccentGreen)
                                                 StatChip("Skipped", s.skipped.toString(), AccentYellow)
-                                                StatChip("Time",    "${s.elapsedSec}s",   AccentBlue)
+                                                StatChip("Time", "${s.elapsedSec}s", AccentBlue)
                                             }
                                         }
                                     }
@@ -637,39 +830,39 @@ fun App() {
                                     onClick = {
                                         if (isBlocked) return@Button
                                         UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName())
-                                val chooser = JFileChooser().apply {
-                                    fileSelectionMode = if (mode == ScanMode.PAGE_MERGE)
-                                        JFileChooser.DIRECTORIES_ONLY
-                                    else
-                                        JFileChooser.FILES_AND_DIRECTORIES
-                                    dialogTitle = if (mode == ScanMode.PAGE_MERGE)
-                                        "Select Target Folder A"
-                                    else
-                                        "Select PDF File or Folder"
-                                    lastDirectory?.let { currentDirectory = it }
-                                }
-                                if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-                                    val file = chooser.selectedFile
-                                    lastDirectory = file.parentFile
-                                    runScan(listOf(file))
-                                }
+                                        val chooser = JFileChooser().apply {
+                                            fileSelectionMode = if (mode == ScanMode.PAGE_MERGE)
+                                                JFileChooser.DIRECTORIES_ONLY
+                                            else
+                                                JFileChooser.FILES_AND_DIRECTORIES
+                                            dialogTitle = if (mode == ScanMode.PAGE_MERGE)
+                                                "Select Target Folder A"
+                                            else
+                                                "Select PDF File or Folder"
+                                            lastDirectory?.let { currentDirectory = it }
+                                        }
+                                        if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+                                            val file = chooser.selectedFile
+                                            lastDirectory = file.parentFile
+                                            runScan(listOf(file))
+                                        }
                                     },
-                                    modifier  = Modifier.fillMaxWidth().height(40.dp),
-                                    shape     = RoundedCornerShape(6.dp),
-                                    enabled   = !isBlocked,
+                                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                                    shape = RoundedCornerShape(6.dp),
+                                    enabled = !isBlocked,
                                     elevation = ButtonDefaults.elevation(0.dp),
-                                    colors    = ButtonDefaults.buttonColors(
+                                    colors = ButtonDefaults.buttonColors(
                                         backgroundColor = AccentBlue, contentColor = Color.White,
                                         disabledBackgroundColor = AccentBlue.copy(alpha = 0.25f),
-                                        disabledContentColor    = TextMuted
+                                        disabledContentColor = TextMuted
                                     )
                                 ) {
                                     Text(
                                         when (mode) {
-                                            ScanMode.PAGE_MERGE    -> "Select Target Folder A →"
-                                            ScanMode.AUTO_ROTATE   -> "Select File / Folder →"
-                                            ScanMode.TEXT_REPLACE  -> "Select File / Folder →"
-                                            else                   -> "Select File / Folder →"
+                                            ScanMode.PAGE_MERGE -> "Select Target Folder A →"
+                                            ScanMode.AUTO_ROTATE -> "Select File / Folder →"
+                                            ScanMode.TEXT_REPLACE -> "Select File / Folder →"
+                                            else -> "Select File / Folder →"
                                         },
                                         fontWeight = FontWeight.SemiBold
                                     )
@@ -677,15 +870,19 @@ fun App() {
 
                                 if (needsFolderB) {
                                     Spacer(Modifier.height(6.dp))
-                                    Text("⚠  Please select Source Folder B first", fontSize = 11.sp,
+                                    Text(
+                                        "⚠  Please select Source Folder B first", fontSize = 11.sp,
                                         color = AccentYellow, textAlign = TextAlign.Center,
-                                        modifier = Modifier.fillMaxWidth())
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
                                 }
                                 if (needsSearch) {
                                     Spacer(Modifier.height(6.dp))
-                                    Text("⚠  Please enter search text first", fontSize = 11.sp,
+                                    Text(
+                                        "⚠  Please enter search text first", fontSize = 11.sp,
                                         color = AccentYellow, textAlign = TextAlign.Center,
-                                        modifier = Modifier.fillMaxWidth())
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
                                 }
                             }
                         }
@@ -693,104 +890,144 @@ fun App() {
                 }
 
                 // ═══════════════════════════════════════════════════════════
-                // RIGHT PANEL — Execution Log
+                // RIGHT PANEL — Execution Log (drop zone)
                 // ═══════════════════════════════════════════════════════════
-                Column(modifier = Modifier.weight(1f).fillMaxHeight().background(BgDeep)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().background(BgBase)
-                            .border(BorderStroke(1.dp, BorderDefault), RectangleShape)
-                            .padding(horizontal = 20.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Surface(color = if (isScanning) AccentGreen.copy(alpha = 0.18f) else BgSubtle, shape = RoundedCornerShape(4.dp)) {
-                                Text(if (isScanning) "● LIVE" else "○ IDLE",
-                                    fontSize = 9.sp, fontWeight = FontWeight.ExtraBold,
-                                    color = if (isScanning) AccentGreen else TextMuted,
-                                    letterSpacing = 0.8.sp,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp))
-                            }
-                            Spacer(Modifier.width(10.dp))
-                            Text("Execution Log", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                            Spacer(Modifier.width(8.dp))
-                            Text("${viewModel.logs.size} lines", fontSize = 11.sp, color = TextMuted, fontFamily = FontFamily.Monospace)
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            LogToolButton("Export") {
-                                scope.launch {
-                                    val result = viewModel.exportLogs(lastDirectory)
-                                    viewModel.logs.add(result)
-                                }
-                            }
-                            LogToolButton("Clear") { viewModel.clearLogs() }
-                        }
-                    }
-
-                    val listState = rememberLazyListState()
-                    LaunchedEffect(viewModel.logs.size) {
-                        if (viewModel.logs.isNotEmpty())
-                            listState.animateScrollToItem(viewModel.logs.size - 1)
-                    }
-
-                    val logBgAlpha = if (isDarkTheme) 0.30f else 0.32f
-                    val logFadeTop = if (isDarkTheme) 0.68f else 0.58f
-                    val logFadeEnd = if (isDarkTheme) 0.88f else 0.80f
-
-                    Box(modifier = Modifier.weight(1f)) {
-                        Image(
-                            painter = painterResource(Res.drawable.docengine),
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.matchParentSize().alpha(logBgAlpha)
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                        .dragAndDropTarget(
+                            shouldStartDragAndDrop = { !isScanning && !isBlocked },
+                            target = dragAndDropTarget
                         )
-                        Box(
-                            modifier = Modifier.matchParentSize().background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        BgBase.copy(alpha = logFadeTop),
-                                        BgBase.copy(alpha = logFadeEnd)
+                ) {
+                    Column(modifier = Modifier.fillMaxSize().background(BgDeep)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().background(BgBase)
+                                .border(BorderStroke(1.dp, BorderDefault), RectangleShape)
+                                .padding(horizontal = 20.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    color = if (isScanning) AccentGreen.copy(alpha = 0.18f) else BgSubtle,
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        if (isScanning) "● LIVE" else "○ IDLE",
+                                        fontSize = 9.sp, fontWeight = FontWeight.ExtraBold,
+                                        color = if (isScanning) AccentGreen else TextMuted,
+                                        letterSpacing = 0.8.sp,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(10.dp))
+                                Text(
+                                    "Execution Log",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextPrimary
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "${viewModel.logs.size} lines",
+                                    fontSize = 11.sp,
+                                    color = TextMuted,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                LogToolButton("Export") {
+                                    scope.launch {
+                                        val result = viewModel.exportLogs(lastDirectory)
+                                        viewModel.logs.add(result)
+                                    }
+                                }
+                                LogToolButton("Clear") { viewModel.clearLogs() }
+                            }
+                        }
+
+                        val listState = rememberLazyListState()
+                        LaunchedEffect(viewModel.logs.size) {
+                            if (viewModel.logs.isNotEmpty())
+                                listState.animateScrollToItem(viewModel.logs.size - 1)
+                        }
+
+                        val logBgAlpha = if (isDarkTheme) 0.30f else 0.32f
+                        val logFadeTop = if (isDarkTheme) 0.68f else 0.58f
+                        val logFadeEnd = if (isDarkTheme) 0.88f else 0.80f
+
+                        Box(modifier = Modifier.weight(1f)) {
+                            Image(
+                                painter = painterResource(Res.drawable.docengine),
+                                contentDescription = null,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.matchParentSize().alpha(logBgAlpha)
+                            )
+                            Box(
+                                modifier = Modifier.matchParentSize().background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            BgBase.copy(alpha = logFadeTop),
+                                            BgBase.copy(alpha = logFadeEnd)
+                                        )
                                     )
                                 )
                             )
-                        )
-                        SelectionContainer(modifier = Modifier.fillMaxSize()) {
-                            LazyColumn(
-                                state = listState,
-                                modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 14.dp),
-                                verticalArrangement = Arrangement.spacedBy(1.dp)
-                            ) {
-                                items(viewModel.logs) { msg ->
-                                    if (msg.isBlank()) Spacer(Modifier.height(4.dp))
-                                    else Text(msg, fontFamily = FontFamily.Monospace, fontSize = 12.sp,
-                                        lineHeight = 18.sp, color = logColor(msg))
+                            SelectionContainer(modifier = Modifier.fillMaxSize()) {
+                                LazyColumn(
+                                    state = listState,
+                                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                                ) {
+                                    items(viewModel.logs) { msg ->
+                                        if (msg.isBlank()) Spacer(Modifier.height(4.dp))
+                                        else Text(
+                                            msg, fontFamily = FontFamily.Monospace, fontSize = 12.sp,
+                                            lineHeight = 18.sp, color = logColor(msg)
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    Surface(color = BgBase, border = BorderStroke(1.dp, BorderDefault), modifier = Modifier.fillMaxWidth()) {
-                        Row(modifier = Modifier.padding(horizontal = 20.dp, vertical = 7.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically) {
-                            Text("DocEngine  v${BuildConfig.VERSION_FULL}  ·  KMP Desktop", fontSize = 10.sp, color = TextMuted, fontFamily = FontFamily.Monospace)
-                            Text(
-                                when {
-                                    isScanning -> "● Processing  ${(progress * 100).toInt()}%"
-                                    stats != null -> "✓ Last run: ${stats!!.success}/${stats!!.total} succeeded"
-                                    else -> "Ready"
-                                },
-                                fontSize = 10.sp,
-                                color = when { isScanning -> AccentBlue; stats != null -> AccentGreen; else -> TextMuted },
-                                fontFamily = FontFamily.Monospace
-                            )
+                        Surface(
+                            color = BgBase,
+                            border = BorderStroke(1.dp, BorderDefault),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 7.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "DocEngine  v${BuildConfig.VERSION_FULL}  ·  KMP Desktop",
+                                    fontSize = 10.sp,
+                                    color = TextMuted,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Text(
+                                    when {
+                                        isScanning -> "● Processing  ${(progress * 100).toInt()}%"
+                                        stats != null -> "✓ Last run: ${stats!!.success}/${stats!!.total} succeeded"
+                                        else -> "Ready"
+                                    },
+                                    fontSize = 10.sp,
+                                    color = when {
+                                        isScanning -> AccentBlue; stats != null -> AccentGreen; else -> TextMuted
+                                    },
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
                         }
-                    }
-                }
+                    } // closes Column
+                    DropOverlay(visible = isHover)
+                } // closes Box
             }
         }
     }
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SMALL SHARED COMPOSABLES
@@ -801,6 +1038,45 @@ private fun StatChip(label: String, value: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = color)
         Text(label, fontSize = 10.sp, color = TextMuted, letterSpacing = 0.5.sp)
+    }
+}
+@Composable
+private fun DropOverlay(visible: Boolean) {
+    AnimatedVisibility(
+        visible = visible,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(AccentBlue.copy(alpha = 0.10f))
+                .border(2.dp, AccentBlue)
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                color = BgBase,
+                shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, AccentBlue.copy(alpha = 0.4f)),
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(28.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("📄", fontSize = 34.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "Drop PDF files or folders",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text("Only .pdf files will be processed", fontSize = 11.sp, color = TextMuted)
+                }
+            }
+        }
     }
 }
 
@@ -832,17 +1108,17 @@ private fun OcrConfig(
     scanQuality: ScanQuality, onScanQualityChange: (ScanQuality) -> Unit,
     onDropUnassignedChange: (Boolean) -> Unit
 ) {
-    val isDeleteMode  = mode == ScanMode.DELETE_BY_KEYWORD
+    val isDeleteMode = mode == ScanMode.DELETE_BY_KEYWORD
     val isKeywordMode = mode == ScanMode.KEYWORD_GROUP
-    val isSplitMode   = mode == ScanMode.SPLIT_AND_ORGANIZE || isKeywordMode
+    val isSplitMode = mode == ScanMode.SPLIT_AND_ORGANIZE || isKeywordMode
 
     SectionLabel(if (isDeleteMode) "Keyword to Delete" else "OCR Pattern")
     ThemedTextField(
         value = delimiter, onValueChange = onDelimiterChange,
         label = when (mode) {
             ScanMode.DELETE_BY_KEYWORD -> "Word or phrase to match"
-            ScanMode.KEYWORD_GROUP     -> "Keyword to find"
-            else                       -> "Delimiter (e.g. Prefix, Invoice, ID)"
+            ScanMode.KEYWORD_GROUP -> "Keyword to find"
+            else -> "Delimiter (e.g. Prefix, Invoice, ID)"
         },
         enabled = !isScanning, modifier = Modifier.fillMaxWidth()
     )
@@ -860,7 +1136,7 @@ private fun OcrConfig(
                 Text("?", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = AccentBlue)
             }
         }
-        
+
         if (showPatternHelp) {
             AlertDialog(
                 onDismissRequest = { showPatternHelp = false },
@@ -901,9 +1177,19 @@ private fun OcrConfig(
         ThemedCheckbox("Auto-Rotate Retry (OSD)", autoRotate, !isScanning, onAutoRotateChange)
         if (!isDeleteMode) ThemedCheckbox("Debug Mode (save OCR images)", debugMode, !isScanning, onDebugChange)
         if (isSplitMode && !isKeywordMode)
-            ThemedCheckbox("Export Undetected Pages to PDF", exportUndetected, !isScanning, onExportUndetectedChange)
+            ThemedCheckbox(
+                "Export Undetected Pages to PDF",
+                exportUndetected,
+                !isScanning,
+                onExportUndetectedChange
+            )
         if (isKeywordMode)
-            ThemedCheckbox("Extract & Delete from original", extractAndDelete, !isScanning, onExtractAndDeleteChange)
+            ThemedCheckbox(
+                "Extract & Delete from original",
+                extractAndDelete,
+                !isScanning,
+                onExtractAndDeleteChange
+            )
     }
 
     ConfigDivider()
@@ -925,9 +1211,9 @@ private fun OcrConfig(
             }
         }
     }
-    
+
     Spacer(modifier = Modifier.height(6.dp))
-    
+
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp)) {
         Column(modifier = Modifier.padding(bottom = 8.dp)) {
             Text("Quality Preset", fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
@@ -953,11 +1239,13 @@ private fun OcrConfig(
             OptionRow(
                 label = "All matched pages in one file",
                 description = "Combine all keyword-matched pages into a single PDF",
-                selected = !keywordExtractSeparately, enabled = !isScanning) { onKeywordExtractSeparatelyChange(false) }
+                selected = !keywordExtractSeparately, enabled = !isScanning
+            ) { onKeywordExtractSeparatelyChange(false) }
             OptionRow(
                 label = "Each page as a separate file",
                 description = "Save each matched page individually (page 1, page 2, …)",
-                selected = keywordExtractSeparately, enabled = !isScanning) { onKeywordExtractSeparatelyChange(true) }
+                selected = keywordExtractSeparately, enabled = !isScanning
+            ) { onKeywordExtractSeparatelyChange(true) }
         }
     }
 
@@ -968,11 +1256,13 @@ private fun OcrConfig(
             OptionRow(
                 label = if (isKeywordMode) "Append Subsequent Pages" else "Append to Previous Group",
                 description = "Attach unmatched pages to the last known group",
-                selected = !dropUnassigned, enabled = !isScanning) { onDropUnassignedChange(false) }
+                selected = !dropUnassigned, enabled = !isScanning
+            ) { onDropUnassignedChange(false) }
             OptionRow(
                 label = if (isKeywordMode) "Extract Matched Page Only" else "Drop Unassigned Pages",
                 description = "Silently discard pages with no pattern match",
-                selected = dropUnassigned, enabled = !isScanning) { onDropUnassignedChange(true) }
+                selected = dropUnassigned, enabled = !isScanning
+            ) { onDropUnassignedChange(true) }
         }
     }
 }
@@ -1033,14 +1323,20 @@ private fun TextReplaceConfig(
     onAccuracyChange: (DetectionAccuracy) -> Unit, onMaxLinesChange: (String) -> Unit
 ) {
     SectionLabel("Search & Replace")
-    ThemedTextField(value = searchText, onValueChange = onSearchTextChange,
-        label = "Text to find (OCR-aware)", enabled = !isScanning, modifier = Modifier.fillMaxWidth())
+    ThemedTextField(
+        value = searchText, onValueChange = onSearchTextChange,
+        label = "Text to find (OCR-aware)", enabled = !isScanning, modifier = Modifier.fillMaxWidth()
+    )
     Spacer(Modifier.height(10.dp))
-    ThemedTextField(value = replaceText, onValueChange = onReplaceTextChange,
-        label = "Replacement text", enabled = !isScanning, modifier = Modifier.fillMaxWidth())
+    ThemedTextField(
+        value = replaceText, onValueChange = onReplaceTextChange,
+        label = "Replacement text", enabled = !isScanning, modifier = Modifier.fillMaxWidth()
+    )
     Spacer(Modifier.height(10.dp))
-    ThemedTextField(value = maxCoverageLines, onValueChange = onMaxLinesChange,
-        label = "Max coverage lines (default 2)", enabled = !isScanning, modifier = Modifier.fillMaxWidth())
+    ThemedTextField(
+        value = maxCoverageLines, onValueChange = onMaxLinesChange,
+        label = "Max coverage lines (default 2)", enabled = !isScanning, modifier = Modifier.fillMaxWidth()
+    )
 
     ConfigDivider()
     SectionLabel("Detection Accuracy")
@@ -1096,27 +1392,56 @@ private fun PageMergeConfig(
 
     SectionLabel("Merge Operation")
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        OptionRow("Replace Page",       "Remove target page, insert source page(s) at that position", mergeOperation == MergeOperation.REPLACE_PAGE,      !isScanning) { onMergeOpChange(MergeOperation.REPLACE_PAGE) }
-        OptionRow("Replace Last Page",  "Replace the last page with source page(s)",                  mergeOperation == MergeOperation.REPLACE_LAST_PAGE, !isScanning) { onMergeOpChange(MergeOperation.REPLACE_LAST_PAGE) }
-        OptionRow("Insert Before Page", "Insert source pages before the target page number",           mergeOperation == MergeOperation.INSERT_BEFORE,     !isScanning) { onMergeOpChange(MergeOperation.INSERT_BEFORE) }
-        OptionRow("Insert After Page",  "Insert source pages after the target page number",            mergeOperation == MergeOperation.INSERT_AFTER,      !isScanning) { onMergeOpChange(MergeOperation.INSERT_AFTER) }
-        OptionRow("Append to End",      "Append all source pages at the end of the document",          mergeOperation == MergeOperation.APPEND_END,        !isScanning) { onMergeOpChange(MergeOperation.APPEND_END) }
+        OptionRow(
+            "Replace Page",
+            "Remove target page, insert source page(s) at that position",
+            mergeOperation == MergeOperation.REPLACE_PAGE,
+            !isScanning
+        ) { onMergeOpChange(MergeOperation.REPLACE_PAGE) }
+        OptionRow(
+            "Replace Last Page",
+            "Replace the last page with source page(s)",
+            mergeOperation == MergeOperation.REPLACE_LAST_PAGE,
+            !isScanning
+        ) { onMergeOpChange(MergeOperation.REPLACE_LAST_PAGE) }
+        OptionRow(
+            "Insert Before Page",
+            "Insert source pages before the target page number",
+            mergeOperation == MergeOperation.INSERT_BEFORE,
+            !isScanning
+        ) { onMergeOpChange(MergeOperation.INSERT_BEFORE) }
+        OptionRow(
+            "Insert After Page",
+            "Insert source pages after the target page number",
+            mergeOperation == MergeOperation.INSERT_AFTER,
+            !isScanning
+        ) { onMergeOpChange(MergeOperation.INSERT_AFTER) }
+        OptionRow(
+            "Append to End",
+            "Append all source pages at the end of the document",
+            mergeOperation == MergeOperation.APPEND_END,
+            !isScanning
+        ) { onMergeOpChange(MergeOperation.APPEND_END) }
     }
 
     AnimatedVisibility(visible = needsPageNumber) {
         Column {
             ConfigDivider()
             SectionLabel("Target Page Number")
-            ThemedTextField(value = targetPageNumber,
+            ThemedTextField(
+                value = targetPageNumber,
                 onValueChange = { if (it.all(Char::isDigit)) onTargetPageChange(it) },
-                label = "Page Number (1-based)", enabled = !isScanning, modifier = Modifier.fillMaxWidth())
+                label = "Page Number (1-based)", enabled = !isScanning, modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 
     ConfigDivider()
     SectionLabel("Source Folder B")
-    FolderPickerCard(label = "Source PDFs", path = folderBPath, enabled = !isScanning,
-        buttonLabel = "Browse Folder B…", onPick = onFolderBPick)
+    FolderPickerCard(
+        label = "Source PDFs", path = folderBPath, enabled = !isScanning,
+        buttonLabel = "Browse Folder B…", onPick = onFolderBPick
+    )
     Spacer(Modifier.height(14.dp))
     InfoBox(
         "How it works",
@@ -1131,19 +1456,19 @@ private fun PageMergeConfig(
 
 @Composable
 fun FooterConfig(
-    leftText         : String,
-    centerText       : String,
-    rightText        : String,
-    height           : String,
-    fontSize         : String,
-    pages            : String,
-    isScanning       : Boolean,
-    onLeftChange     : (String) -> Unit,
-    onCenterChange   : (String) -> Unit,
-    onRightChange    : (String) -> Unit,
-    onHeightChange   : (String) -> Unit,
-    onFontSizeChange : (String) -> Unit,
-    onPagesChange    : (String) -> Unit
+    leftText: String,
+    centerText: String,
+    rightText: String,
+    height: String,
+    fontSize: String,
+    pages: String,
+    isScanning: Boolean,
+    onLeftChange: (String) -> Unit,
+    onCenterChange: (String) -> Unit,
+    onRightChange: (String) -> Unit,
+    onHeightChange: (String) -> Unit,
+    onFontSizeChange: (String) -> Unit,
+    onPagesChange: (String) -> Unit
 ) {
     SectionLabel("Footer Text  —  3 Zones")
 
@@ -1159,49 +1484,49 @@ fun FooterConfig(
     Spacer(Modifier.height(12.dp))
 
     ThemedTextField(
-        value         = leftText,
+        value = leftText,
         onValueChange = onLeftChange,
-        label         = "Left zone",
-        enabled       = !isScanning,
-        modifier      = Modifier.fillMaxWidth()
+        label = "Left zone",
+        enabled = !isScanning,
+        modifier = Modifier.fillMaxWidth()
     )
     Spacer(Modifier.height(8.dp))
     ThemedTextField(
-        value         = centerText,
+        value = centerText,
         onValueChange = onCenterChange,
-        label         = "Center zone",
-        enabled       = !isScanning,
-        modifier      = Modifier.fillMaxWidth()
+        label = "Center zone",
+        enabled = !isScanning,
+        modifier = Modifier.fillMaxWidth()
     )
     Spacer(Modifier.height(8.dp))
     ThemedTextField(
-        value         = rightText,
+        value = rightText,
         onValueChange = onRightChange,
-        label         = "Right zone",
-        enabled       = !isScanning,
-        modifier      = Modifier.fillMaxWidth()
+        label = "Right zone",
+        enabled = !isScanning,
+        modifier = Modifier.fillMaxWidth()
     )
 
     ConfigDivider()
     SectionLabel("Dimensions")
 
     Row(
-        modifier             = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         ThemedTextField(
-            value         = height,
+            value = height,
             onValueChange = onHeightChange,
-            label         = "Footer height (pt)",
-            enabled       = !isScanning,
-            modifier      = Modifier.weight(1f)
+            label = "Footer height (pt)",
+            enabled = !isScanning,
+            modifier = Modifier.weight(1f)
         )
         ThemedTextField(
-            value         = fontSize,
+            value = fontSize,
             onValueChange = onFontSizeChange,
-            label         = "Font size (pt)",
-            enabled       = !isScanning,
-            modifier      = Modifier.weight(1f)
+            label = "Font size (pt)",
+            enabled = !isScanning,
+            modifier = Modifier.weight(1f)
         )
     }
 
@@ -1209,11 +1534,11 @@ fun FooterConfig(
     SectionLabel("Page Range")
 
     ThemedTextField(
-        value         = pages,
+        value = pages,
         onValueChange = onPagesChange,
-        label         = "Pages (e.g. 5-10, 12, 15, 20-25) - Blank for all",
-        enabled       = !isScanning,
-        modifier      = Modifier.fillMaxWidth()
+        label = "Pages (e.g. 5-10, 12, 15, 20-25) - Blank for all",
+        enabled = !isScanning,
+        modifier = Modifier.fillMaxWidth()
     )
     Spacer(Modifier.height(8.dp))
     InfoBox(
@@ -1275,11 +1600,11 @@ private fun HandwritingConfig(
     SectionLabel("Confidence Threshold")
 
     ThemedTextField(
-        value         = minConfidence,
+        value = minConfidence,
         onValueChange = onMinConfidenceChange,
-        label         = "Min confidence % (0–100, default 25)",
-        enabled       = !isScanning,
-        modifier      = Modifier.fillMaxWidth()
+        label = "Min confidence % (0–100, default 25)",
+        enabled = !isScanning,
+        modifier = Modifier.fillMaxWidth()
     )
 
     Spacer(Modifier.height(10.dp))
@@ -1296,15 +1621,15 @@ private fun HandwritingConfig(
 
     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
         ThemedCheckbox(
-            label           = "Save extraction report (.txt)",
-            checked         = saveReport,
-            enabled         = !isScanning,
+            label = "Save extraction report (.txt)",
+            checked = saveReport,
+            enabled = !isScanning,
             onCheckedChange = onSaveReportChange
         )
         ThemedCheckbox(
-            label           = "Export handwriting text only (.txt)",
-            checked         = textOnly,
-            enabled         = !isScanning,
+            label = "Export handwriting text only (.txt)",
+            checked = textOnly,
+            enabled = !isScanning,
             onCheckedChange = onTextOnlyChange
         )
     }
