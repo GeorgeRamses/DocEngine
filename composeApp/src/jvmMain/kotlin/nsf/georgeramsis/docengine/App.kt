@@ -450,15 +450,17 @@ fun App() {
 
     val runScan: (List<File>) -> Unit = { files ->
         val inputFiles = files.flatMap { file ->
+            // Always use absolute paths so parentFile is never null on any PC.
+            val absFile = file.absoluteFile
             when {
-                file.isDirectory -> file.walkTopDown()
+                absFile.isDirectory -> absFile.walkTopDown()
                     .filter {
                         it.isFile && it.extension.equals("pdf", ignoreCase = true) &&
                             !it.toPath().any { part -> part.toString().equals("Extracted by size", ignoreCase = true) }
                     }
                     .toList()
 
-                file.extension.equals("pdf", ignoreCase = true) -> listOf(file)
+                absFile.extension.equals("pdf", ignoreCase = true) -> listOf(absFile)
                 else -> emptyList()
             }
         }

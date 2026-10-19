@@ -306,8 +306,10 @@ class PdfService {
 
     /** @return true if at least one page was extracted. */
     private suspend fun extractOneFileBySize(file: File, onLog: suspend (String) -> Unit): Boolean {
+        // Ensure we always work with an absolute path so parentFile is never null on any PC.
+        val absFile = file.absoluteFile
         // Temp-file buffering: large scanned PDFs won't blow up the heap.
-        PDDocument.load(file, MemoryUsageSetting.setupTempFileOnly()).use { source ->
+        PDDocument.load(absFile, scratchSetting()).use { source ->
             val outputs = LinkedHashMap<String, PDDocument>()
             val pagesBySize = LinkedHashMap<String, MutableList<Int>>()
             val skipped = mutableListOf<String>()
@@ -320,31 +322,31 @@ class PdfService {
                         skipped += "p${index + 1} (${dims.longMm.roundToInt()}×${dims.shortMm.roundToInt()} mm)"
                         return@forEachIndexed
                     }
-                    outputs.getOrPut(label) { PDDocument(MemoryUsageSetting.setupTempFileOnly()) }
+                    outputs.getOrPut(label) { PDDocument(scratchSetting()) }
                         .importPage(page)
                     pagesBySize.getOrPut(label) { mutableListOf() }.add(index + 1)
                 }
 
                 // One summary line per size instead of one log line per page
                 pagesBySize.forEach { (size, pages) ->
-                    onLog("  📄 [${file.name}] $size → pages ${pages.toRangeString()}")
+                    onLog("  📄 [${absFile.name}] $size → pages ${pages.toRangeString()}")
                 }
                 if (skipped.isNotEmpty()) {
                     val shown = skipped.take(10).joinToString(", ")
                     val more = if (skipped.size > 10) " … +${skipped.size - 10} more" else ""
-                    onLog("  ⚠ [${file.name}] ${skipped.size} page(s) not A4/A3: $shown$more")
+                    onLog("  ⚠ [${absFile.name}] ${skipped.size} page(s) not A4/A3: $shown$more")
                 }
 
                 if (outputs.isEmpty()) {
-                    onLog("  ⚠ [${file.name}] No A4 or A3 pages found")
+                    onLog("  ⚠ [${absFile.name}] No A4 or A3 pages found")
                     return false
                 }
 
                 outputs.forEach { (size, document) ->
-                    val outputDir = File(file.parentFile, "Extracted by size/$size").apply { mkdirs() }
-                    val output = resolveCollision(outputDir, file.name)   // never overwrite a previous run
+                    val outputDir = File(absFile.parentFile, "Extracted by size/$size").apply { mkdirs() }
+                    val output = resolveCollision(outputDir, absFile.name)   // never overwrite a previous run
                     document.save(output)
-                    onLog("  ✅ [${file.name}] ${document.numberOfPages} $size page(s) → ${output.absolutePath}")
+                    onLog("  ✅ [${absFile.name}] ${document.numberOfPages} $size page(s) → ${output.absolutePath}")
                 }
                 return true
             } finally {
@@ -1876,4 +1878,24 @@ class PdfService {
             ImageIO.write(img, "jpg", File(outDir, "${fName}_P${pIdx}_$tag.jpg"))
         }
     }
+}
+
+/**
+ * PDFBox scratch settings that don't depend on %TEMP% being valid.
+ * Small docs stay in RAM; larger ones spill to a folder we create ourselves.
+ */
+private fun scratchSetting(): MemoryUsageSetting {
+    val candidates = listOf(
+        File(System.getProperty("java.io.tmpdir").orEmpty()),
+        File(System.getProperty("user.home").orEmpty(), ".attendance-ocr/tmp"),
+        File(System.getProperty("user.dir").orEmpty(), "tmp"),
+    )
+    val dir = candidates.firstOrNull { d ->
+        d.path.isNotBlank() && runCatching {
+            d.mkdirs()
+            d.isDirectory && d.canWrite()
+        }.getOrDefault(false)
+    } ?: error("No writable scratch folder found (tried: ${candidates.joinToString { it.path }})")
+
+    return MemoryUsageSetting.setupMixed(256L * 1024 * 1024).setTempDir(dir)
 }
